@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -11,8 +6,20 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.Windows.Storage.Pickers;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices.JavaScript;
+using System.Runtime.InteropServices.WindowsRuntime;
+using System.Text.Json.Serialization;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.UI.Popups;
+using HarSharp;
+using M365_HAR_Viewer.Services;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -52,14 +59,31 @@ namespace M365_HAR_Viewer
             var result = await openPicker.PickSingleFileAsync();
             if (result is not null)
             {
-                var content = System.IO.File.ReadAllText(result.Path);
+
+                try
+                {
+                    string file = File.ReadAllText(result.Path);
+
+                    TestTextBox.Text = HarFileService.Instance.DeserializeHarFile(file);
+
+                }
+                catch (Exception ex)
+                {
+                    TestTextBox.Text = "Error: " + ex.Message;
+                }
+                
+
             }
             else
             {
                 // Add your error handling here.
+                var dialog = new MessageDialog("Failed to open the selected file. Please try again.");
+                await dialog.ShowAsync();
             }
 
             LoadFileButton.Visibility = Visibility.Collapsed;
         }
+
+
     }
 }

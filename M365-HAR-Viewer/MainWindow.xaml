@@ -26,6 +26,8 @@
         
         <Button x:Name="LoadFileButton" Content="Load HAR File" Click="LoadFileButton_Click" Background="Green"/>
 
+        <TextBox x:Name="TestTextBox" TextWrapping="Wrap" MaxHeight="100" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+
         <ListBox x:Name="HarFileListBox">
             
         </ListBox> 
