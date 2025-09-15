@@ -13,7 +13,22 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid>
+    <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
 
-    </Grid>
+        <StackPanel.Resources>
+            <Style TargetType="Button">
+                <Setter Property="Width" Value="150"/>
+                <Setter Property="Height" Value="40"/>
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="Margin" Value="10"/>
+            </Style>
+        </StackPanel.Resources>
+        
+        <Button x:Name="LoadFileButton" Content="Load HAR File" Click="LoadFileButton_Click" Background="Green"/>
+
+        <ListBox x:Name="HarFileListBox">
+            
+        </ListBox> 
+        
+    </StackPanel>
 </Window>
