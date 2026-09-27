@@ -34,7 +34,7 @@ To publish a version:
 1. Update `<Version>`, `<AssemblyVersion>`, and `<FileVersion>` in `M365Trace.Web.csproj`.
 2. Build and test the release.
 3. Create and push a matching tag such as `v0.1.0`.
-4. Publish a non-draft, non-prerelease GitHub Release for that tag and attach the distributable package.
+4. The tag-triggered release workflow validates the version, builds and tests the application, runs the packaged Chromium workflow, creates the Windows ZIP and SHA-256 checksum, attests the artifact, and publishes the GitHub Release.
 
 The latest stable GitHub Release is the update source of truth. Tags without a published release are not offered to users.
 
