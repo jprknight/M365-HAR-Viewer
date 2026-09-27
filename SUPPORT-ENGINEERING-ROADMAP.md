@@ -24,13 +24,13 @@ The remaining gaps are less about basic file viewing and more about helping a su
 
 1. **Trace-wide triage is delivered.** The collapsible summary covers severe findings, failing hosts, status distribution, slowest sessions, authentication patterns, and high-impact rules, with drill-through into matching sessions.
 2. **Composable filtering and content search are delivered.** Debounced global search covers session metadata, findings, request and response headers, and retained decoded body text. It combines with structured filters for severity, status family or exact code, method, host, duration, session type, authentication, finding rule, and finding presence.
-3. **Source metadata fidelity is limited.** The normalized model omits protocol version, connection/process information, client/server IPs, TLS details, HAR timing phases, request/response byte sizes, redirect/cache data, and most SAZ metadata flags.
-4. **Timing analysis is shallow.** Only total duration is retained; there is no timeline or waterfall for DNS, connect, TLS, send, wait, receive, queueing, or repeated/retry patterns.
-5. **Large-trace usability is unproven.** Import has limits, but there is no progress, cancellation, virtualization/paging, benchmark suite, or defined performance budget for 10,000-100,000 sessions.
-6. **Import diagnostics are all-or-nothing.** A malformed session can fail an import without a structured summary of skipped, truncated, partially decoded, or unsupported content.
-7. **Correlation workflows remain mostly manual.** The UI elevates common diagnostic headers, but it does not yet group related calls or identify redirect, retry, and authentication chains.
-8. **Investigation state is ephemeral.** There are no bookmarks, notes, marked sessions, or saved filter state for a support engineer working through a trace.
-9. **Current UI behavior has component and browser coverage, but future workflows remain untested.** Component tests cover import success and recovery, encrypted-SAZ password handling, global search and structured filtering, active chips, summary drill-through, selection recovery, keyboard accessibility semantics, diagnostic headers, every sortable column, finding rendering, request/response view modes, update states, and body inspectors. A packaged Chromium smoke test covers HAR upload, content search, filter clearing, keyboard navigation, focus movement, diagnostic headers, and detail selection. Import-quality reporting and representative SAZ browser tests require coverage when those features are implemented.
+3. **Source metadata fidelity is delivered.** The normalized model and HAR/SAZ importers retain protocol, size, endpoint, process, connection, TLS, redirect, cache, page, detailed timing, and completeness metadata when the source provides it.
+4. **Full-trace timing visualization is out of scope.** A timeline/waterfall was evaluated and removed because it did not improve the session-list and request/response troubleshooting workflow enough to justify its UI and complexity.
+5. **Large-trace behavior is measured and controllable.** Benchmarks and budgets cover 1,000-100,000-session HAR and SAZ traces. Imports expose transient phase status, support cancellation through analysis and aggregation, and reject stale results. Evidence-driven virtualization or paging remains planned.
+6. **Import diagnostics are delivered.** Recoverable sessions remain available and an import-quality panel reports skipped, truncated, partial, unsupported, invalid, and missing-response conditions.
+7. **Broad automatic correlation is out of scope.** A proof of concept grouped identifiers, redirects, authentication sequences, retries, and repeated failures, but normal Outlook traffic triggered the panel frequently and created noise rather than actionable troubleshooting value. Diagnostic headers remain available for focused manual investigation.
+8. **Investigation-state controls are out of scope.** A bookmarks, notes, and marked-session prototype was removed because it bloated the session-first workspace without enough troubleshooting value.
+9. **Current UI behavior has component and browser coverage, but future workflows remain untested.** Component tests cover import success and recovery, import-quality warnings, encrypted-SAZ password handling, global search and structured filtering, active chips, summary drill-through, selection recovery, keyboard accessibility semantics, diagnostic headers, every sortable column, finding rendering, request/response view modes, update states, and body inspectors. A packaged Chromium smoke test covers HAR upload, content search, filter clearing, keyboard navigation, focus movement, diagnostic headers, detail selection, and warning-panel layout. Representative SAZ browser tests remain planned.
 
 ## Product decisions
 
@@ -42,18 +42,18 @@ The remaining gaps are less about basic file viewing and more about helping a su
 
 ## Roadmap
 
-### Implementation status — September 24, 2026
+### Implementation status — September 27, 2026
 
 Status markers in this document apply only where the complete listed outcome has been delivered:
 
 - `[x]` Completed and merged into `master`.
 - `[ ]` Planned or only partially implemented. Partial coverage is described inline.
 
-Phase 1 is complete. Phase 2 is underway, and Phase 3 remains planned:
+Phases 1 and 2 are complete. Phase 3 concepts were evaluated and removed as out of scope. Phase 4 is underway:
 
 - Release `v1.0.2` delivered the encrypted SAZ, UI, port, classification, and unified-versioning work that formed the roadmap baseline.
-- CI now validates formatting, warning-free builds, 201 solution tests, a 40% aggregate coverage floor, vulnerable NuGet packages, and a self-contained Windows package.
-- A packaged Chromium test validates application startup, HAR upload, filtering, filter clearing, diagnostic headers, and request-only detail selection.
+- CI now validates formatting, warning-free builds, 207 solution tests, a 40% aggregate coverage floor, vulnerable NuGet packages, and a self-contained Windows package.
+- A packaged Chromium test validates application startup, HAR upload, filtering, filter clearing, diagnostic headers, request-only detail selection, and import-warning layout.
 - CodeQL, Dependabot, tag-driven release packaging, checksums, and artifact provenance are configured.
 - Importer boundary, malformed-input, cancellation, archive safety, component, secure body-preview, and packaged-browser tests have been expanded.
 - XML display now handles diagnostic responses containing prohibited numeric character references without altering Raw content.
@@ -63,6 +63,9 @@ Phase 1 is complete. Phase 2 is underway, and Phase 3 remains planned:
 - A collapsible trace summary now reports trace timing, severity and HTTP status distributions, findings, slow sessions, failing hosts, high-impact rule IDs, slowest sessions, and authentication classifications.
 - Structured filters now combine with free text using explicit AND/OR semantics, display removable chips and visible counts, reconcile selection when results change, and support summary-driven drill-through.
 - The detail workspace elevates recognized diagnostic headers while retaining the complete request and response header lists.
+- HAR and SAZ importers retain richer normalized metadata and recover usable sessions with explicit import-quality reporting.
+- A repeatable benchmark harness now measures 1,000, 10,000, and 100,000-session HAR and SAZ workflows against versioned performance and managed-memory budgets.
+- Long-running imports now expose transient phase status, support cancellation through import, analysis, and summary aggregation, and prevent stale operations from replacing newer selections.
 
 ### Phase 1 — Support-engineer triage essentials
 
@@ -296,52 +299,52 @@ If the selected session is removed from the visible result:
 - Continue importing recoverable sessions when one archive entry is malformed, while retaining strict failure for unsafe paths, archive bombs, invalid top-level formats, and unusable archives.
 - Make partial-import behavior explicit and covered by tests.
 
-### Phase 3 — Timing and correlation workflows
+### Phase 3 — Investigation workflows
 
-#### 9. Add a scalable timeline/waterfall
+#### 9. Timeline/waterfall — out of scope
 
-- Visualize session start, duration, and timing phases against the trace time range.
-- Support zoom, horizontal navigation, severity/status coloring, and synchronized selection with the session grid.
-- Group or color by host, process, connection, or page where metadata exists.
-- Provide a table-only accessible alternative.
-- Use rendering virtualization or aggregation so large traces do not create one unrestricted DOM element per timing segment.
+- A full-trace timeline/waterfall was implemented and evaluated with the support-engineering workflow.
+- It was removed because it did not provide enough troubleshooting value beyond the sortable session list, trace summary, and request/response details.
+- Normalized timing metadata remains available for focused rules, summaries, and future evidence-driven diagnostics.
+- Do not reintroduce a general timeline/waterfall without a concrete support scenario that cannot be served effectively by the existing session-first workflow.
 
-#### 10. Add correlation and pattern analysis
+#### 10. Broad automatic correlation — out of scope
 
-- Detect and group redirect chains, authentication challenge/response sequences, retry patterns, repeated failures, and request-ID/correlation-ID families.
-- Show related-session links in the detail panel.
-- Add trace-level detectors separately from per-session `ITraceRule` implementations because they require cross-session context.
-- Produce trace-level findings with supporting session IDs and deterministic evidence.
-- Start with conservative, explainable heuristics and confidence values; do not infer causality from timing alone.
+- A proof of concept detected identifier families, redirect chains, authentication challenge/follow-up sequences, retries, and repeated failures.
+- Normal working Outlook traces triggered multiple correlation cards, making expected protocol behavior look suspicious and adding noise to the session-detail workflow.
+- The proof of concept was removed after support-engineering review.
+- Do not reintroduce broad automatic correlation without an anomaly-specific, actionable scenario that distinguishes unhealthy behavior from normal protocol sequences.
+- Focused actions such as finding other sessions with the same diagnostic identifier may be reconsidered separately if a concrete workflow requires them.
 
-#### 11. Add bookmarks and investigation notes
+#### 11. Bookmarks and investigation notes — out of scope
 
-- Allow engineers to mark sessions and add local notes.
-- Support a Marked sessions filter.
-- Keep investigation state in memory by default.
-- If persistence is later added, store only an explicit sidecar file chosen by the user; never modify the source HAR or SAZ.
+- A proof of concept added session bookmarks, per-session local notes, and a Marked sessions filter.
+- The additional grid controls, filter state, and detail-panel editor made the investigation workspace feel bloated relative to their troubleshooting value.
+- The proof of concept was removed after support-engineering review.
+- Do not reintroduce general bookmarks or notes unless a concrete investigation workflow demonstrates that the state cannot be managed effectively outside the trace analyzer.
+- Never modify a source HAR or SAZ to store investigation state.
 
 ### Phase 4 — Scale, resilience, and release readiness
 
 #### 12. Define performance budgets and benchmarks
 
-- Add generated benchmark fixtures for representative 1,000, 10,000, and 100,000-session traces within configured size limits.
-- Measure import time, analysis time, peak managed memory, initial render time, filter latency, sort latency, and timeline interaction latency.
-- Establish pass/fail budgets before selecting optimization techniques.
-- Run benchmarks for both HAR and SAZ, including compressed/encrypted SAZ scenarios where practical.
+- [x] Add generated benchmark fixtures for representative 1,000, 10,000, and 100,000-session traces within configured size limits.
+- [x] Measure import time, analysis time, peak managed memory, initial render time, filter latency, and sort latency.
+- [x] Establish versioned pass/fail budgets before selecting optimization techniques.
+- [x] Run benchmarks for HAR and compressed SAZ, with an explicit encrypted-SAZ workload for practical targeted runs.
 
 #### 13. Make long operations controllable
 
-- Add import and analysis progress states.
-- Add cancellation that propagates through browser stream reading, importers, analysis, aggregation, and UI state.
-- Move analysis off the UI interaction path where necessary.
+- [x] Add transient import and analysis progress states without adding a persistent panel.
+- [x] Add cancellation that propagates through browser stream reading, importers, analysis, aggregation, and UI state.
+- [x] Move analysis and summary aggregation off the Blazor UI interaction path.
 - Add table virtualization or server-side paging over in-memory data based on benchmark evidence.
-- Prevent stale imports from replacing newer user selections.
+- [x] Prevent stale imports from replacing newer user selections.
 
 #### 14. Add UI and integration regression coverage
 
-- [ ] Add component tests for filters, clear actions, sorting, session selection, request/response view modes, password flow, and import warnings.
-  - Partial: all currently implemented component workflows are covered, including import/password states, free-text and structured filtering, chips, summary drill-through, selection reconciliation, diagnostic headers, sorting, finding details, request/response modes, version states, JSON/XML formatting, HTML sandboxing, images, binary fallbacks, and truncation messaging. Import-warning coverage remains pending because that product feature is not implemented.
+- [x] Add component tests for filters, clear actions, sorting, session selection, request/response view modes, password flow, and import warnings.
+  - Current component coverage includes import/password states, import warnings, free-text and structured filtering, chips, summary drill-through, selection reconciliation, diagnostic headers, sorting, finding details, request/response modes, version states, JSON/XML formatting, HTML sandboxing, images, binary fallbacks, and truncation messaging.
 - [ ] Add browser-level smoke tests for opening representative HAR, unencrypted SAZ, and encrypted SAZ files.
   - Partial: the packaged Chromium test covers HAR upload, session rendering, filtering, filter clearing, diagnostic headers, and request-only detail selection. SAZ browser coverage remains planned.
 - [x] Test accessibility semantics and keyboard workflows for the main investigation path.
@@ -372,6 +375,9 @@ If the selected session is removed from the visible result:
 
 ## Deferred items
 
+- Full-trace timeline or waterfall visualization.
+- Broad automatic trace-correlation panels.
+- Session bookmarks and investigation notes.
 - MCP server or external web API implementation.
 - Cloud-hosted trace processing or trace upload.
 - Live traffic capture, proxying, or request replay.
@@ -383,7 +389,7 @@ If the selected session is removed from the visible result:
 
 - Unit tests for every new normalized field and malformed/partial input path.
 - Trace-level analysis fixtures proving deterministic grouping and evidence.
-- Component tests for triage filters and investigation state.
+- Component tests for triage filters and session-first investigation workflows.
 - Browser smoke tests for primary support-engineer workflows.
 - Performance benchmarks at 1,000, 10,000, and 100,000 sessions.
 - Security tests verifying bounded parsing, path safety, decompression limits, HTML sandboxing, XML restrictions, and password non-retention.
@@ -392,8 +398,7 @@ If the selected session is removed from the visible result:
 
 1. [x] Commit and release the completed current-state work.
 2. [x] Complete Phase 1 triage, structured filters, ergonomics, accessibility, and browser coverage.
-3. [ ] Expand the core model and importer fidelity with import-quality reporting.
-4. [ ] Add timeline and cross-session correlation on top of the richer model.
-5. [ ] Harden scale, cancellation, UI regression coverage, and packaging.
-   - Partial: UI regression coverage and Windows packaging automation are in place; scale benchmarks, end-to-end cancellation, virtualization, and broader browser fixtures remain planned.
-6. [ ] Reassess whether an MCP adapter has a concrete support workflow after the standalone investigation experience is proven.
+3. [x] Expand the core model and importer fidelity with import-quality reporting.
+4. [ ] Harden scale, cancellation, UI regression coverage, and packaging.
+   - Partial: scale benchmarks, cancellation, stale-operation protection, UI regression coverage, and Windows packaging automation are in place; evidence-driven virtualization and broader browser fixtures remain planned.
+5. [ ] Reassess whether an MCP adapter has a concrete support workflow after the standalone investigation experience is proven.

@@ -203,6 +203,16 @@ public sealed class TraceSummaryServiceTests
             summary.SlowestSessions.Select(session => session.SessionId));
     }
 
+    [Fact]
+    public void Create_ObservesCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() =>
+            _service.Create([], cancellation.Token));
+    }
+
     private static TraceSession CreateSession(
         int id,
         DateTimeOffset startedAt,

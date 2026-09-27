@@ -37,6 +37,19 @@ public sealed class HarTraceImporterTests
     }
 
     [Fact]
+    public async Task ImportAsync_ObservesCancellation()
+    {
+        await using var stream = OpenTestData("minimal-valid.har");
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new HarTraceImporter().ImportAsync(
+                stream,
+                cancellationToken: cancellation.Token));
+    }
+
+    [Fact]
     public async Task ImportAsync_FullHarMetadata_MapsNormalizedGroups()
     {
         await using var stream = OpenTestData("full-metadata.har");
