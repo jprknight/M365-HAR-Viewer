@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.JSInterop;
 
 namespace M365Trace.Benchmarks;
 
@@ -220,6 +221,7 @@ internal sealed class BenchmarkRunner(BenchmarkOptions options)
     {
         using var services = new ServiceCollection()
             .AddLogging()
+            .AddSingleton<IJSRuntime, BenchmarkJsRuntime>()
             .BuildServiceProvider();
         await using var renderer = new HtmlRenderer(
             services,
@@ -260,6 +262,20 @@ internal sealed class BenchmarkRunner(BenchmarkOptions options)
             stopwatch.Elapsed.TotalMilliseconds,
             GC.GetTotalAllocatedBytes(precise: true) - allocatedBefore,
             sampler.PeakBytes);
+    }
+
+    private sealed class BenchmarkJsRuntime : IJSRuntime
+    {
+        public ValueTask<TValue> InvokeAsync<TValue>(
+            string identifier,
+            object?[]? args) =>
+            ValueTask.FromResult(default(TValue)!);
+
+        public ValueTask<TValue> InvokeAsync<TValue>(
+            string identifier,
+            CancellationToken cancellationToken,
+            object?[]? args) =>
+            ValueTask.FromResult(default(TValue)!);
     }
 
     private async Task<PerformanceBudgetFile> LoadBudgetsAsync(

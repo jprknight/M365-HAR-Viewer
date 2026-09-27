@@ -40,12 +40,17 @@
         to return to the selected session.
     </p>
 
-    <div class="table-container">
+    <div class="table-container"
+         tabindex="-1">
         <table class="session-table"
                data-session-grid
+               data-session-count="@Sessions.Count"
+               data-selected-index="@selectedSessionIndex"
+               data-session-row-height="@SessionRowHeight"
                role="grid"
                aria-label="Trace sessions"
                aria-describedby="session-grid-instructions"
+               aria-rowcount="@(Sessions.Count + 1)"
                aria-multiselectable="false">
             <thead>
                 <tr>
@@ -97,33 +102,39 @@
                 }
                 else
                 {
-                    @foreach (var session in Sessions)
-                    {
-                        <tr class="@(SelectedSessionId == session.Id ? "selected" : null)"
-                            data-session-id="@session.Id"
+                    <Virtualize Items="@virtualizedSessions"
+                                Context="row"
+                                ItemSize="@SessionRowHeight"
+                                OverscanCount="8"
+                                SpacerElement="tr">
+                        <tr @key="row.Session.Id"
+                            class="@(SelectedSessionId == row.Session.Id ? "selected" : null)"
+                            data-session-id="@row.Session.Id"
+                            data-session-index="@row.Index"
                             data-session-row
-                            tabindex="@(SelectedSessionId == session.Id ? "0" : "-1")"
-                            aria-selected="@(SelectedSessionId == session.Id ? "true" : "false")"
-                            aria-label="@GetSessionAccessibleLabel(session)"
-                            @onclick="() => SessionSelected.InvokeAsync(session)">
-                            <td>@session.Id</td>
+                            tabindex="@(SelectedSessionId == row.Session.Id ? "0" : "-1")"
+                            aria-rowindex="@(row.Index + 2)"
+                            aria-selected="@(SelectedSessionId == row.Session.Id ? "true" : "false")"
+                            aria-label="@GetSessionAccessibleLabel(row.Session)"
+                            @onclick="() => SessionSelected.InvokeAsync(row.Session)">
+                            <td>@row.Session.Id</td>
                             <td>
-                                <span class="severity-badge @TraceDisplayFormatter.GetSeverityClass(session.Analysis.Severity)">
-                                    @TraceDisplayFormatter.GetSeverityLabel(session.Analysis.Severity)
+                                <span class="severity-badge @TraceDisplayFormatter.GetSeverityClass(row.Session.Analysis.Severity)">
+                                    @TraceDisplayFormatter.GetSeverityLabel(row.Session.Analysis.Severity)
                                 </span>
                             </td>
                             <td>
-                                <span class="status-code @TraceDisplayFormatter.GetStatusClass(session.StatusCode)">
-                                    @session.StatusCode
+                                <span class="status-code @TraceDisplayFormatter.GetStatusClass(row.Session.StatusCode)">
+                                    @row.Session.StatusCode
                                 </span>
                             </td>
-                            <td><span class="method">@session.Method</span></td>
-                            <td>@session.Url.Host</td>
+                            <td><span class="method">@row.Session.Method</span></td>
+                            <td>@row.Session.Url.Host</td>
                             <td class="path-cell"
-                                title="@session.Url.PathAndQuery">@session.Url.PathAndQuery</td>
-                            <td>@TraceDisplayFormatter.FormatDuration(session.Duration)</td>
+                                title="@row.Session.Url.PathAndQuery">@row.Session.Url.PathAndQuery</td>
+                            <td>@TraceDisplayFormatter.FormatDuration(row.Session.Duration)</td>
                         </tr>
-                    }
+                    </Virtualize>
                 }
             </tbody>
         </table>
@@ -162,12 +173,26 @@
     public EventCallback<TraceSession> SessionSelected { get; set; }
 
     private const int SearchDebounceMilliseconds = 300;
+    private const float SessionRowHeight = 43;
 
     private CancellationTokenSource? searchDebounce;
+    private IReadOnlyList<TraceSession>? previousSessions;
+    private SessionRow[] virtualizedSessions = [];
+    private int selectedSessionIndex = -1;
     private string searchText = string.Empty;
 
     protected override void OnParametersSet()
     {
+        if (!ReferenceEquals(previousSessions, Sessions))
+        {
+            virtualizedSessions = Sessions
+                .Select((session, index) => new SessionRow(session, index))
+                .ToArray();
+            previousSessions = Sessions;
+        }
+
+        selectedSessionIndex = FindSelectedSessionIndex();
+
         if (searchDebounce is null)
         {
             searchText = Query.FreeText;
@@ -246,5 +271,27 @@
         + $"{session.Method} {session.Url.Host}{session.Url.PathAndQuery}, "
         + $"{TraceDisplayFormatter.FormatDuration(session.Duration)}";
 
+    private int FindSelectedSessionIndex()
+    {
+        if (SelectedSessionId is not int selectedSessionId)
+        {
+            return -1;
+        }
+
+        for (var index = 0; index < Sessions.Count; index++)
+        {
+            if (Sessions[index].Id == selectedSessionId)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
     public void Dispose() => CancelPendingSearch();
+
+    private readonly record struct SessionRow(
+        TraceSession Session,
+        int Index);
 }
