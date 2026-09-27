@@ -30,7 +30,7 @@ The remaining gaps are less about basic file viewing and more about helping a su
 6. **Import diagnostics are delivered.** Recoverable sessions remain available and an import-quality panel reports skipped, truncated, partial, unsupported, invalid, and missing-response conditions.
 7. **Broad automatic correlation is out of scope.** A proof of concept grouped identifiers, redirects, authentication sequences, retries, and repeated failures, but normal Outlook traffic triggered the panel frequently and created noise rather than actionable troubleshooting value. Diagnostic headers remain available for focused manual investigation.
 8. **Investigation-state controls are out of scope.** A bookmarks, notes, and marked-session prototype was removed because it bloated the session-first workspace without enough troubleshooting value.
-9. **Current UI behavior has component and browser coverage, but future workflows remain untested.** Component tests cover import success and recovery, import-quality warnings, encrypted-SAZ password handling, global search and structured filtering, active chips, summary drill-through, selection recovery, keyboard accessibility semantics, diagnostic headers, every sortable column, finding rendering, request/response view modes, update states, and body inspectors. A packaged Chromium smoke test covers HAR upload, content search, filter clearing, keyboard navigation, focus movement, diagnostic headers, detail selection, and warning-panel layout. Representative SAZ browser tests remain planned.
+9. **Current UI behavior has component and browser coverage.** Component tests cover import success and recovery, import-quality warnings, encrypted-SAZ password handling, global search and structured filtering, active chips, summary drill-through, selection recovery, keyboard accessibility semantics, diagnostic headers, every sortable column, finding rendering, request/response view modes, update states, and body inspectors. A packaged Chromium smoke test covers HAR, unencrypted SAZ, and AES-256 encrypted SAZ imports; password retry; content search; filter clearing; keyboard navigation; focus movement; diagnostic headers; detail selection; and warning-panel layout.
 
 ## Product decisions
 
@@ -53,7 +53,7 @@ Phases 1 and 2 are complete. Phase 3 concepts were evaluated and removed as out 
 
 - Release `v1.0.2` delivered the encrypted SAZ, UI, port, classification, and unified-versioning work that formed the roadmap baseline.
 - CI now validates formatting, warning-free builds, 209 solution tests, a 40% aggregate coverage floor, vulnerable NuGet packages, and a self-contained Windows package.
-- A packaged Chromium test validates application startup, HAR upload, filtering, filter clearing, diagnostic headers, request-only detail selection, and import-warning layout.
+- A packaged Chromium test validates application startup; HAR, unencrypted SAZ, and AES-256 encrypted SAZ uploads; encrypted-archive password retry; filtering; filter clearing; diagnostic headers; request/response detail selection; and import-warning layout.
 - CodeQL, Dependabot, tag-driven release packaging, checksums, and artifact provenance are configured.
 - Importer boundary, malformed-input, cancellation, archive safety, component, secure body-preview, and packaged-browser tests have been expanded.
 - XML display now handles diagnostic responses containing prohibited numeric character references without altering Raw content.
@@ -346,8 +346,8 @@ If the selected session is removed from the visible result:
 
 - [x] Add component tests for filters, clear actions, sorting, session selection, request/response view modes, password flow, and import warnings.
   - Current component coverage includes import/password states, import warnings, free-text and structured filtering, chips, summary drill-through, selection reconciliation, diagnostic headers, sorting, finding details, request/response modes, version states, virtualized large-trace rendering, JSON/XML formatting, HTML sandboxing, images, binary fallbacks, and truncation messaging.
-- [ ] Add browser-level smoke tests for opening representative HAR, unencrypted SAZ, and encrypted SAZ files.
-  - Partial: the packaged Chromium test covers HAR upload, session rendering, filtering, filter clearing, diagnostic headers, and request-only detail selection. SAZ browser coverage remains planned.
+- [x] Add browser-level smoke tests for opening representative HAR, unencrypted SAZ, and encrypted SAZ files.
+  - The packaged Chromium test covers HAR and SAZ session rendering, filtering, filter clearing, diagnostic headers, request/response detail selection, AES-256 password prompting, incorrect-password recovery, and decrypted response inspection.
 - [x] Test accessibility semantics and keyboard workflows for the main investigation path.
 - [x] Retain importer safety, ruleset determinism, and secure HTML/XML preview tests.
 
@@ -401,5 +401,5 @@ If the selected session is removed from the visible result:
 2. [x] Complete Phase 1 triage, structured filters, ergonomics, accessibility, and browser coverage.
 3. [x] Expand the core model and importer fidelity with import-quality reporting.
 4. [ ] Harden scale, cancellation, UI regression coverage, and packaging.
-   - Partial: scale benchmarks, cancellation, stale-operation protection, session-grid virtualization, UI regression coverage, and Windows packaging automation are in place; broader SAZ browser fixtures remain planned.
+   - Partial: scale benchmarks, cancellation, stale-operation protection, session-grid virtualization, HAR/SAZ packaged-browser coverage, and Windows packaging automation are in place. The remaining work is release/version completion rather than another investigation workflow.
 5. [ ] Reassess whether an MCP adapter has a concrete support workflow after the standalone investigation experience is proven.
