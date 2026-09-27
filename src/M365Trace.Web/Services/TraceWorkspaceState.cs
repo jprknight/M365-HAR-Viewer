@@ -5,11 +5,11 @@ namespace M365Trace.Web.Services;
 public sealed class TraceWorkspaceState(SessionQueryService queryService)
 {
     private readonly List<TraceSession> _sessions = [];
+    private IReadOnlyList<TraceSession> _visibleSessions = [];
 
     public IReadOnlyList<TraceSession> Sessions => _sessions;
 
-    public IReadOnlyList<TraceSession> VisibleSessions =>
-        queryService.Apply(_sessions, Query);
+    public IReadOnlyList<TraceSession> VisibleSessions => _visibleSessions;
 
     public TraceSession? SelectedSession { get; private set; }
 
@@ -20,6 +20,7 @@ public sealed class TraceWorkspaceState(SessionQueryService queryService)
     public void ClearSessions()
     {
         _sessions.Clear();
+        _visibleSessions = [];
         SelectedSession = null;
         FileName = null;
     }
@@ -33,6 +34,7 @@ public sealed class TraceWorkspaceState(SessionQueryService queryService)
 
         _sessions.Clear();
         _sessions.AddRange(sessions);
+        RefreshVisibleSessions();
         SelectedSession = _sessions.FirstOrDefault();
         FileName = fileName;
     }
@@ -52,6 +54,7 @@ public sealed class TraceWorkspaceState(SessionQueryService queryService)
         ArgumentNullException.ThrowIfNull(query);
 
         Query = query;
+        RefreshVisibleSessions();
         ReconcileSelection();
     }
 
@@ -73,6 +76,7 @@ public sealed class TraceWorkspaceState(SessionQueryService queryService)
                 SortColumn = column,
                 SortAscending = true
             };
+        RefreshVisibleSessions();
     }
 
     public void SelectSession(TraceSession session)
@@ -81,6 +85,11 @@ public sealed class TraceWorkspaceState(SessionQueryService queryService)
 
         SelectedSession = _sessions.FirstOrDefault(candidate =>
             candidate.Id == session.Id);
+    }
+
+    private void RefreshVisibleSessions()
+    {
+        _visibleSessions = queryService.Apply(_sessions, Query);
     }
 
     private void ReconcileSelection()

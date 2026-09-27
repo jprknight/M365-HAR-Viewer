@@ -78,6 +78,22 @@ public sealed class TraceWorkspaceStateTests
     }
 
     [Fact]
+    public void VisibleSessions_RemainsStableUntilQueryChanges()
+    {
+        _state.ReplaceSessions("sample.har", _sessions);
+        var visibleSessions = _state.VisibleSessions;
+
+        Assert.Same(visibleSessions, _state.VisibleSessions);
+
+        _state.SetSort(SessionSortColumn.Method);
+
+        Assert.NotSame(visibleSessions, _state.VisibleSessions);
+        Assert.Equal(
+            [3, 1, 2],
+            _state.VisibleSessions.Select(session => session.Id));
+    }
+
+    [Fact]
     public void SetQuery_SelectsNextVisibleSessionInTraceOrder()
     {
         _state.ReplaceSessions("sample.har", _sessions);

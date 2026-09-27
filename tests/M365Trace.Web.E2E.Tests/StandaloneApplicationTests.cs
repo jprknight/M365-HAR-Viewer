@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Text.Json;
 using Microsoft.Playwright;
 
 namespace M365Trace.Web.E2E.Tests;
@@ -36,6 +37,9 @@ public sealed class StandaloneApplicationTests
         var warningHarPath = Path.Combine(
             Path.GetTempPath(),
             $"m365-trace-warning-e2e-{Guid.NewGuid():N}.har");
+        var largeHarPath = Path.Combine(
+            Path.GetTempPath(),
+            $"m365-trace-large-e2e-{Guid.NewGuid():N}.har");
         Process? process = null;
 
         try
@@ -44,6 +48,7 @@ public sealed class StandaloneApplicationTests
             await File.WriteAllTextAsync(
                 warningHarPath,
                 CreateWarningHar());
+            await File.WriteAllTextAsync(largeHarPath, CreateLargeHar());
             var startInfo = new ProcessStartInfo
             {
                 FileName = executablePath,
@@ -249,6 +254,33 @@ public sealed class StandaloneApplicationTests
                 0,
                 await responseSummaries.CountAsync());
 
+            await page
+                .Locator("input[type=file]")
+                .First
+                .SetInputFilesAsync(largeHarPath);
+            await page.WaitForFunctionAsync(
+                """
+                () => {
+                    const grid = document.querySelector(
+                        "table[data-session-grid]");
+                    const rows = document.querySelectorAll(
+                        "tbody tr[data-session-row]");
+                    return grid?.dataset.sessionCount === "250"
+                        && rows.length > 0
+                        && rows.length < 250;
+                }
+                """);
+
+            var firstLargeSession = page.Locator(
+                "tbody tr[data-session-id='1']");
+            await firstLargeSession.FocusAsync();
+            await firstLargeSession.PressAsync("End");
+            await WaitForSelectedSessionWithDiagnosticsAsync(page, 250);
+            Assert.Equal(
+                "250",
+                await page.EvaluateAsync<string>(
+                    "() => document.activeElement?.dataset.sessionId"));
+
             await page.SetViewportSizeAsync(1060, 768);
             await page
                 .Locator("input[type=file]")
@@ -300,6 +332,7 @@ public sealed class StandaloneApplicationTests
             process?.Dispose();
             File.Delete(harPath);
             File.Delete(warningHarPath);
+            File.Delete(largeHarPath);
             File.Delete(outputPath);
             File.Delete(errorPath);
         }
@@ -379,6 +412,41 @@ public sealed class StandaloneApplicationTests
         }
     }
 
+    private static async Task WaitForSelectedSessionWithDiagnosticsAsync(
+        IPage page,
+        int sessionId)
+    {
+        try
+        {
+            await page
+                .Locator($"tbody tr.selected[data-session-id='{sessionId}']")
+                .WaitForAsync();
+        }
+        catch (TimeoutException exception)
+        {
+            var state = await page.EvaluateAsync<string>(
+                """
+                () => {
+                    const container = document.querySelector(".table-container");
+                    const rows = Array.from(document.querySelectorAll(
+                        "tbody tr[data-session-row]"));
+                    return JSON.stringify({
+                        scrollTop: container?.scrollTop,
+                        scrollHeight: container?.scrollHeight,
+                        clientHeight: container?.clientHeight,
+                        firstIndex: rows[0]?.dataset.sessionIndex,
+                        lastIndex: rows.at(-1)?.dataset.sessionIndex,
+                        selectedId: document.querySelector(
+                            "tbody tr.selected")?.dataset.sessionId
+                    });
+                }
+                """);
+            throw new Xunit.Sdk.XunitException(
+                $"Expected session {sessionId} to be selected. Grid state: {state}",
+                exception);
+        }
+    }
+
     private static string CreateHar() =>
         """
         {
@@ -436,6 +504,50 @@ public sealed class StandaloneApplicationTests
           }
         }
         """;
+
+    private static string CreateLargeHar()
+    {
+        var entries = Enumerable.Range(1, 250)
+            .Select(id => new
+            {
+                startedDateTime =
+                    $"2026-09-23T10:{id / 60:00}:{id % 60:00}-04:00",
+                time = 50,
+                request = new
+                {
+                    method = "GET",
+                    url = $"https://example.test/session/{id}",
+                    httpVersion = "HTTP/1.1",
+                    headers = Array.Empty<object>()
+                },
+                response = new
+                {
+                    status = 200,
+                    statusText = "OK",
+                    httpVersion = "HTTP/1.1",
+                    headers = Array.Empty<object>(),
+                    content = new
+                    {
+                        mimeType = "application/json",
+                        text = """{"status":"ok"}"""
+                    }
+                }
+            });
+
+        return JsonSerializer.Serialize(new
+        {
+            log = new
+            {
+                version = "1.2",
+                creator = new
+                {
+                    name = "M365 Trace Analyzer E2E",
+                    version = "1.0"
+                },
+                entries
+            }
+        });
+    }
 
     private static string CreateWarningHar() =>
         """

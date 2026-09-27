@@ -1,12 +1,58 @@
 (() => {
-    const getSessionRows = row =>
-        Array.from(
-            row.closest("table[data-session-grid]")?.querySelectorAll(
-                "tbody tr[data-session-row]") ?? []);
-
     const focusRow = row => {
         row.focus({ preventScroll: true });
         row.scrollIntoView({ block: "nearest" });
+    };
+
+    const getRowByIndex = (grid, index) =>
+        grid.querySelector(`tbody tr[data-session-index="${index}"]`);
+
+    const focusIndex = (grid, index, select = true) => {
+        const row = getRowByIndex(grid, index);
+        if (row) {
+            if (select) {
+                row.click();
+                requestAnimationFrame(() =>
+                    focusRow(getRowByIndex(grid, index) ?? row));
+            } else {
+                focusRow(row);
+            }
+            return;
+        }
+
+        const container = grid.closest(".table-container");
+        if (!container) {
+            return;
+        }
+
+        const measuredRow = grid.querySelector(
+            "tbody tr[data-session-row]");
+        const rowHeight = measuredRow?.getBoundingClientRect().height
+            || Number(grid.dataset.sessionRowHeight);
+        const headingHeight = grid.tHead?.offsetHeight ?? 0;
+        const targetOffset = headingHeight + (index * rowHeight);
+        container.scrollTop = Math.max(
+            0,
+            targetOffset - ((container.clientHeight - rowHeight) / 2));
+
+        const deadline = performance.now() + 5000;
+        const focusWhenRendered = () => {
+            const renderedRow = getRowByIndex(grid, index);
+            if (renderedRow) {
+                if (select) {
+                    renderedRow.click();
+                }
+                requestAnimationFrame(() =>
+                    focusRow(getRowByIndex(grid, index) ?? renderedRow));
+                return;
+            }
+
+            if (performance.now() < deadline) {
+                requestAnimationFrame(focusWhenRendered);
+            }
+        };
+
+        requestAnimationFrame(focusWhenRendered);
     };
 
     document.addEventListener("pointerdown", event => {
@@ -19,8 +65,9 @@
     document.addEventListener("keydown", event => {
         const row = event.target.closest?.("tr[data-session-row]");
         if (row) {
-            const rows = getSessionRows(row);
-            const currentIndex = rows.indexOf(row);
+            const grid = row.closest("table[data-session-grid]");
+            const currentIndex = Number(row.dataset.sessionIndex);
+            const sessionCount = Number(grid?.dataset.sessionCount);
             let targetIndex = currentIndex;
 
             switch (event.key) {
@@ -28,13 +75,15 @@
                     targetIndex = Math.max(0, currentIndex - 1);
                     break;
                 case "ArrowDown":
-                    targetIndex = Math.min(rows.length - 1, currentIndex + 1);
+                    targetIndex = Math.min(
+                        sessionCount - 1,
+                        currentIndex + 1);
                     break;
                 case "Home":
                     targetIndex = 0;
                     break;
                 case "End":
-                    targetIndex = rows.length - 1;
+                    targetIndex = sessionCount - 1;
                     break;
                 case "ArrowRight": {
                     const detailPanel = document.querySelector(
@@ -56,12 +105,8 @@
             }
 
             event.preventDefault();
-            const targetRow = rows[targetIndex];
-            if (targetRow) {
-                focusRow(targetRow);
-                if (targetRow !== row) {
-                    targetRow.click();
-                }
+            if (grid && targetIndex !== currentIndex) {
+                focusIndex(grid, targetIndex);
             }
             return;
         }
@@ -70,11 +115,12 @@
         if (detailPanel
             && event.target === detailPanel
             && event.key === "ArrowLeft") {
-            const selectedRow = document.querySelector(
-                "table[data-session-grid] tbody tr[aria-selected='true']");
-            if (selectedRow) {
+            const grid = document.querySelector(
+                "table[data-session-grid]");
+            const selectedIndex = Number(grid?.dataset.selectedIndex);
+            if (grid && selectedIndex >= 0) {
                 event.preventDefault();
-                focusRow(selectedRow);
+                focusIndex(grid, selectedIndex, false);
             }
         }
     });

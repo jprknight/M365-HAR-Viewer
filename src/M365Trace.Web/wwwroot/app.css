@@ -900,7 +900,8 @@ main {
 
 .session-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 0.82rem;
     table-layout: fixed;
 }
@@ -1006,15 +1007,16 @@ main {
     text-align: right;
 }
 
-.session-table tbody tr {
+.session-table tbody tr[data-session-row] {
+    height: 2.6875rem;
     cursor: pointer;
 }
 
-.session-table tbody tr:hover:not(.selected) {
+.session-table tbody tr[data-session-row]:hover:not(.selected) {
     background: rgba(56, 139, 253, 0.1);
 }
 
-.session-table tbody tr.selected {
+.session-table tbody tr[data-session-row].selected {
     position: relative;
     outline: 2px solid #58a6ff;
     outline-offset: -2px;

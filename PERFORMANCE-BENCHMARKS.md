@@ -72,6 +72,20 @@ and the SAZ import allocates substantially more transient memory than HAR.
 Those measurements should guide the next scale work rather than adding
 virtualization speculatively.
 
+Session-grid virtualization was added after this baseline. A focused
+100,000-session validation on the same environment produced:
+
+| Format | Import | Analysis | Summary | Render | Filter | Sort | Peak |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| HAR | 1,973 ms | 1,598 ms | 199 ms | 258 ms | 54 ms | 155 ms | 595 MiB |
+| SAZ | 5,824 ms | 928 ms | 117 ms | 174 ms | 52 ms | 67 ms | 810 MiB |
+
+The initial session-table render now allocates approximately 8.5 MiB for
+100,000 sessions instead of retaining a render tree for every row. Overall
+peak managed memory fell by approximately 52% for HAR and 48% for SAZ while
+preserving the existing table, filtering, sorting, selection, and keyboard
+workflow.
+
 The versioned budgets are in `benchmarks/performance-budgets.json`. They are
 initial regression ceilings rather than optimization targets. Change a budget
 only with a recorded benchmark result and an explanation of the intended

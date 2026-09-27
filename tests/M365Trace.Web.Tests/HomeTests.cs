@@ -97,6 +97,38 @@ public sealed class HomeTests : IDisposable
     }
 
     [Fact]
+    public void LargeTrace_RendersOnlyVirtualizedSessionRows()
+    {
+        _importer.Sessions = Enumerable.Range(1, 1_000)
+            .Select(id => CreateSession(
+                id,
+                "GET",
+                $"https://example.test/session/{id}",
+                200,
+                "OK",
+                50))
+            .ToArray();
+        var component = _context.Render<Home>();
+
+        Upload(component, "large.har");
+
+        component.WaitForAssertion(() =>
+        {
+            var grid = component.Find("table[data-session-grid]");
+            var rows = component.FindAll("tbody tr[data-session-row]");
+
+            Assert.Equal("1001", grid.GetAttribute("aria-rowcount"));
+            Assert.InRange(rows.Count, 1, 150);
+            Assert.Equal("0", rows[0].GetAttribute("data-session-index"));
+            Assert.Equal("2", rows[0].GetAttribute("aria-rowindex"));
+            Assert.Equal(
+                2,
+                component.FindAll(
+                    "tbody > tr:not([data-session-row])").Count);
+        });
+    }
+
+    [Fact]
     public void SuccessfulImport_ShowsTraceSummaryAndVisibleCount()
     {
         var component = RenderAndLoad();
@@ -201,7 +233,9 @@ public sealed class HomeTests : IDisposable
         {
             Assert.DoesNotContain("Unable to open the trace.", component.Markup);
             Assert.Contains("recovered.har", component.Markup);
-            Assert.Equal(3, component.FindAll("tbody tr").Count);
+            Assert.Equal(
+                3,
+                component.FindAll("tbody tr[data-session-row]").Count);
         });
     }
 
@@ -253,7 +287,9 @@ public sealed class HomeTests : IDisposable
             Assert.Equal("correct horse", _importer.Options.Last()?.Password);
             Assert.DoesNotContain("Password required", component.Markup);
             Assert.Contains("protected.saz", component.Markup);
-            Assert.Equal(3, component.FindAll("tbody tr").Count);
+            Assert.Equal(
+                3,
+                component.FindAll("tbody tr[data-session-row]").Count);
         });
     }
 
@@ -302,7 +338,9 @@ public sealed class HomeTests : IDisposable
 
         component.WaitForAssertion(() =>
         {
-            Assert.Equal(3, component.FindAll("tbody tr").Count);
+            Assert.Equal(
+                3,
+                component.FindAll("tbody tr[data-session-row]").Count);
             Assert.Empty(component.FindAll("button.search-clear-button"));
         });
     }
@@ -538,7 +576,7 @@ public sealed class HomeTests : IDisposable
     {
         var component = RenderAndLoad();
 
-        component.FindAll("tbody tr").Single(row =>
+        component.FindAll("tbody tr[data-session-row]").Single(row =>
             row.QuerySelector("td")?.TextContent == "3").Click();
 
         component.WaitForAssertion(() =>
@@ -601,7 +639,7 @@ public sealed class HomeTests : IDisposable
     {
         var component = RenderAndLoad();
 
-        component.FindAll("tbody tr").Single(row =>
+        component.FindAll("tbody tr[data-session-row]").Single(row =>
             row.QuerySelector("td")?.TextContent == "2").Click();
 
         component.WaitForAssertion(() =>
@@ -768,7 +806,9 @@ public sealed class HomeTests : IDisposable
         component.WaitForAssertion(() =>
         {
             Assert.Contains("Update check unavailable", component.Markup);
-            Assert.Equal(3, component.FindAll("tbody tr").Count);
+            Assert.Equal(
+                3,
+                component.FindAll("tbody tr[data-session-row]").Count);
         });
     }
 
@@ -779,7 +819,9 @@ public sealed class HomeTests : IDisposable
         var component = _context.Render<Home>();
         Upload(component, fileName);
         component.WaitForAssertion(() =>
-            Assert.Equal(_importer.Sessions.Count, component.FindAll("tbody tr").Count));
+            Assert.Equal(
+                _importer.Sessions.Count,
+                component.FindAll("tbody tr[data-session-row]").Count));
         return component;
     }
 
