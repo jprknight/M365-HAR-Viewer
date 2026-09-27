@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\M365Trace.Import.Har\M365Trace.Import.Har.csproj" />
+    <ProjectReference Include="..\..\src\M365Trace.Import.Saz\M365Trace.Import.Saz.csproj" />
+    <ProjectReference Include="..\..\src\M365Trace.Rules\M365Trace.Rules.csproj" />
+    <ProjectReference Include="..\..\src\M365Trace.Web\M365Trace.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

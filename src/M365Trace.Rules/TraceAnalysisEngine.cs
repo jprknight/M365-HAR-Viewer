@@ -18,14 +18,18 @@ public sealed class TraceAnalysisEngine
     {
     }
 
-    public TraceAnalysisResult Analyze(TraceSession session)
+    public TraceAnalysisResult Analyze(
+        TraceSession session,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var context = new AnalysisContext(session);
 
         foreach (var rule in _catalog.Rules)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (rule.AppliesTo(context))
             {
                 rule.Evaluate(context);

@@ -78,6 +78,31 @@ main {
     gap: 0.75rem;
 }
 
+.trace-operation-status {
+    display: flex;
+    min-width: 13rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.45rem 0.55rem 0.45rem 0.75rem;
+    border: 1px solid #d29922;
+    border-radius: 0.5rem;
+    background: rgba(187, 128, 9, 0.1);
+}
+
+.trace-operation-status span {
+    overflow: hidden;
+    color: #e3b341;
+    font-size: 0.75rem;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.trace-operation-status .secondary-action-button {
+    padding: 0.4rem 0.6rem;
+}
+
 .version-card {
     display: flex;
     min-width: 12rem;
@@ -146,11 +171,6 @@ main {
 
 .file-button:hover {
     background: #388bfd;
-}
-
-.file-button.disabled {
-    cursor: wait;
-    opacity: 0.7;
 }
 
 .file-button input {

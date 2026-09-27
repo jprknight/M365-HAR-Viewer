@@ -29,6 +29,7 @@ public sealed class HomeTests : IDisposable
         _context.Services.AddSingleton<SessionQueryService>();
         _context.Services.AddSingleton<TraceSummaryService>();
         _context.Services.AddSingleton<DiagnosticHeaderService>();
+        _context.Services.AddSingleton<TraceOperationCoordinator>();
     }
 
     [Fact]

@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "budgets": [
+    {
+      "format": "har",
+      "sessionCount": 1000,
+      "maximumImportMilliseconds": 1500,
+      "maximumAnalysisMilliseconds": 500,
+      "maximumSummaryMilliseconds": 250,
+      "maximumInitialRenderMilliseconds": 1000,
+      "maximumFilterMilliseconds": 250,
+      "maximumSortMilliseconds": 250,
+      "maximumPeakManagedBytes": 134217728
+    },
+    {
+      "format": "saz",
+      "sessionCount": 1000,
+      "maximumImportMilliseconds": 2000,
+      "maximumAnalysisMilliseconds": 500,
+      "maximumSummaryMilliseconds": 250,
+      "maximumInitialRenderMilliseconds": 1000,
+      "maximumFilterMilliseconds": 250,
+      "maximumSortMilliseconds": 250,
+      "maximumPeakManagedBytes": 268435456
+    },
+    {
+      "format": "saz-encrypted",
+      "sessionCount": 1000,
+      "maximumImportMilliseconds": 7000,
+      "maximumAnalysisMilliseconds": 500,
+      "maximumSummaryMilliseconds": 250,
+      "maximumInitialRenderMilliseconds": 1000,
+      "maximumFilterMilliseconds": 250,
+      "maximumSortMilliseconds": 250,
+      "maximumPeakManagedBytes": 268435456
+    },
+    {
+      "format": "har",
+      "sessionCount": 10000,
+      "maximumImportMilliseconds": 3000,
+      "maximumAnalysisMilliseconds": 1500,
+      "maximumSummaryMilliseconds": 500,
+      "maximumInitialRenderMilliseconds": 3000,
+      "maximumFilterMilliseconds": 1000,
+      "maximumSortMilliseconds": 1000,
+      "maximumPeakManagedBytes": 536870912
+    },
+    {
+      "format": "saz",
+      "sessionCount": 10000,
+      "maximumImportMilliseconds": 7000,
+      "maximumAnalysisMilliseconds": 1500,
+      "maximumSummaryMilliseconds": 500,
+      "maximumInitialRenderMilliseconds": 3000,
+      "maximumFilterMilliseconds": 1000,
+      "maximumSortMilliseconds": 1000,
+      "maximumPeakManagedBytes": 536870912
+    },
+    {
+      "format": "har",
+      "sessionCount": 100000,
+      "maximumImportMilliseconds": 10000,
+      "maximumAnalysisMilliseconds": 8000,
+      "maximumSummaryMilliseconds": 2000,
+      "maximumInitialRenderMilliseconds": 8000,
+      "maximumFilterMilliseconds": 2000,
+      "maximumSortMilliseconds": 3000,
+      "maximumPeakManagedBytes": 3221225472
+    },
+    {
+      "format": "saz",
+      "sessionCount": 100000,
+      "maximumImportMilliseconds": 30000,
+      "maximumAnalysisMilliseconds": 8000,
+      "maximumSummaryMilliseconds": 2000,
+      "maximumInitialRenderMilliseconds": 8000,
+      "maximumFilterMilliseconds": 2000,
+      "maximumSortMilliseconds": 3000,
+      "maximumPeakManagedBytes": 3221225472
+    }
+  ]
+}

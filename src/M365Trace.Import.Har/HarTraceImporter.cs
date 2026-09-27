@@ -88,7 +88,7 @@ public sealed class HarTraceImporter : ITraceImporter
                 },
                 cancellationToken);
 
-            return ParseDocument(document.RootElement);
+            return ParseDocument(document.RootElement, cancellationToken);
         }
         catch (HarImportException)
         {
@@ -106,7 +106,9 @@ public sealed class HarTraceImporter : ITraceImporter
         }
     }
 
-    private TraceImportResult ParseDocument(JsonElement root)
+    private TraceImportResult ParseDocument(
+        JsonElement root,
+        CancellationToken cancellationToken)
     {
         if (root.ValueKind != JsonValueKind.Object
             || !root.TryGetProperty("log", out var log)
@@ -134,6 +136,7 @@ public sealed class HarTraceImporter : ITraceImporter
 
         foreach (var entry in entries.EnumerateArray())
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 sessions.Add(ParseEntry(entry, id, pages));

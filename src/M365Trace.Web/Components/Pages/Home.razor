@@ -4,6 +4,7 @@
 @inject M365Trace.Web.Services.VersionUpdateService VersionUpdateService
 @inject M365Trace.Web.Services.SessionQueryService SessionQueryService
 @inject M365Trace.Web.Services.TraceSummaryService TraceSummaryService
+@inject M365Trace.Web.Services.TraceOperationCoordinator OperationCoordinator
 
 <PageTitle>M365 Trace Analyzer</PageTitle>
 
@@ -43,11 +44,24 @@
             }
         </div>
 
-        <label class="file-button @(isLoading ? "disabled" : null)">
-            <span>@(isLoading ? "Loading..." : "Open Trace")</span>
+        @if (isLoading)
+        {
+            <div class="trace-operation-status"
+                 role="status"
+                 aria-live="polite">
+                <span>@operationStatus</span>
+                <button type="button"
+                        class="secondary-action-button"
+                        @onclick="CancelActiveOperation">
+                    Cancel
+                </button>
+            </div>
+        }
+
+        <label class="file-button">
+            <span>@(isLoading ? "Open Another Trace" : "Open Trace")</span>
             <InputFile OnChange="LoadTraceAsync"
-                       accept=".har,.saz,application/json,application/zip"
-                       disabled="@isLoading" />
+                       accept=".har,.saz,application/json,application/zip" />
         </label>
     </div>
 </header>
@@ -89,16 +103,24 @@
     </section>
 }
 
-@if (workspace.Sessions.Count == 0 && pendingFile is null && !isLoading)
+@if (workspace.Sessions.Count == 0 && pendingFile is null)
 {
     <section class="empty-state">
-        <label class="file-button empty-file-button">
-            <span>Open Trace</span>
-            <InputFile OnChange="LoadTraceAsync"
-                       accept=".har,.saz,application/json,application/zip" />
-        </label>
-        <h2>Open a HAR or SAZ trace</h2>
-        <p>Select a HAR file exported from browser developer tools or a Fiddler Session Archive.</p>
+        @if (isLoading)
+        {
+            <h2>@operationStatus</h2>
+            <p>You can cancel this operation or open another trace from the header.</p>
+        }
+        else
+        {
+            <label class="file-button empty-file-button">
+                <span>Open Trace</span>
+                <InputFile OnChange="LoadTraceAsync"
+                           accept=".har,.saz,application/json,application/zip" />
+            </label>
+            <h2>Open a HAR or SAZ trace</h2>
+            <p>Select a HAR file exported from browser developer tools or a Fiddler Session Archive.</p>
+        }
     </section>
 }
 else if (workspace.Sessions.Count > 0)
@@ -148,11 +170,13 @@ else if (workspace.Sessions.Count > 0)
     private TraceImportResult? importResult;
     private string? errorMessage;
     private string archivePassword = string.Empty;
-    private bool isLoading;
+    private string? operationStatus;
     private IBrowserFile? pendingFile;
     private ITraceImporter? pendingImporter;
     private M365Trace.Web.Services.VersionCheckResult? versionCheck;
     private DetailTrafficView trafficView = DetailTrafficView.Both;
+
+    private bool isLoading => OperationCoordinator.HasActiveOperation;
 
     protected override async Task OnInitializedAsync()
     {
@@ -220,11 +244,9 @@ else if (workspace.Sessions.Count > 0)
 
     private async Task LoadTraceAsync(InputFileChangeEventArgs args)
     {
-        isLoading = true;
+        var operation = OperationCoordinator.Begin();
+        operationStatus = $"Opening {args.File.Name}...";
         errorMessage = null;
-        workspace.ClearSessions();
-        traceSummary = null;
-        importResult = null;
         archivePassword = string.Empty;
         pendingFile = null;
         pendingImporter = null;
@@ -238,23 +260,36 @@ else if (workspace.Sessions.Count > 0)
                 candidate.CanImport(file.Name))
                 ?? throw new TraceImportException(
                     "Select a supported .har or .saz trace file.");
-            await ImportTraceAsync(file, importer);
+            await ImportTraceAsync(file, importer, operation);
         }
         catch (SazPasswordRequiredException)
         {
-            pendingFile = file;
-            pendingImporter = importer!;
+            if (OperationCoordinator.IsCurrent(operation))
+            {
+                pendingFile = file;
+                pendingImporter = importer!;
+            }
+        }
+        catch (OperationCanceledException)
+            when (operation.CancellationToken.IsCancellationRequested)
+        {
         }
         catch (Exception exception) when (
             exception is TraceImportException
             or IOException
             or InvalidOperationException)
         {
-            errorMessage = exception.Message;
+            if (OperationCoordinator.IsCurrent(operation))
+            {
+                errorMessage = exception.Message;
+            }
         }
         finally
         {
-            isLoading = false;
+            if (OperationCoordinator.Complete(operation))
+            {
+                operationStatus = null;
+            }
         }
     }
 
@@ -267,7 +302,10 @@ else if (workspace.Sessions.Count > 0)
             return;
         }
 
-        isLoading = true;
+        var file = pendingFile;
+        var importer = pendingImporter;
+        var operation = OperationCoordinator.Begin();
+        operationStatus = $"Opening {file.Name}...";
         errorMessage = null;
         var password = archivePassword;
         archivePassword = string.Empty;
@@ -275,39 +313,114 @@ else if (workspace.Sessions.Count > 0)
         try
         {
             await ImportTraceAsync(
-                pendingFile,
-                pendingImporter,
+                file,
+                importer,
+                operation,
                 new TraceImportOptions { Password = password });
+        }
+        catch (OperationCanceledException)
+            when (operation.CancellationToken.IsCancellationRequested)
+        {
         }
         catch (Exception exception) when (
             exception is TraceImportException
             or IOException
             or InvalidOperationException)
         {
-            errorMessage = exception.Message;
+            if (OperationCoordinator.IsCurrent(operation))
+            {
+                errorMessage = exception.Message;
+            }
         }
         finally
         {
-            isLoading = false;
+            if (OperationCoordinator.Complete(operation))
+            {
+                operationStatus = null;
+            }
         }
     }
 
     private async Task ImportTraceAsync(
         IBrowserFile file,
         ITraceImporter importer,
+        M365Trace.Web.Services.TraceOperation operation,
         TraceImportOptions? options = null)
     {
+        var cancellationToken = operation.CancellationToken;
         await using var stream = file.OpenReadStream(MaximumBrowserFileSize);
-        var result = await importer.ImportWithReportAsync(stream, options);
+        var result = await importer.ImportWithReportAsync(
+            stream,
+            options,
+            cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
 
-        workspace.ReplaceSessions(
-            file.Name,
-            result.Sessions.Select(session =>
-                session with { Analysis = AnalysisEngine.Analyze(session) }));
+        await UpdateOperationStatusAsync(
+            operation,
+            $"Analyzing {result.Sessions.Count:N0} sessions...");
+        var analyzedSessions = await Task.Run(
+            () => AnalyzeSessions(result.Sessions, cancellationToken),
+            cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await UpdateOperationStatusAsync(operation, "Preparing workspace...");
+        var summary = await Task.Run(
+            () => TraceSummaryService.Create(
+                analyzedSessions,
+                cancellationToken),
+            cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!OperationCoordinator.IsCurrent(operation))
+        {
+            return;
+        }
+
+        workspace.ReplaceSessions(file.Name, analyzedSessions);
         importResult = result;
-        traceSummary = TraceSummaryService.Create(workspace.Sessions);
+        traceSummary = summary;
         pendingFile = null;
         pendingImporter = null;
+    }
+
+    private TraceSession[] AnalyzeSessions(
+        IReadOnlyList<TraceSession> sessions,
+        CancellationToken cancellationToken)
+    {
+        var analyzed = new TraceSession[sessions.Count];
+        for (var index = 0; index < sessions.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var session = sessions[index];
+            analyzed[index] = session with
+            {
+                Analysis = AnalysisEngine.Analyze(
+                    session,
+                    cancellationToken)
+            };
+        }
+
+        return analyzed;
+    }
+
+    private async Task UpdateOperationStatusAsync(
+        M365Trace.Web.Services.TraceOperation operation,
+        string status)
+    {
+        if (!OperationCoordinator.IsCurrent(operation))
+        {
+            return;
+        }
+
+        operationStatus = status;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void CancelActiveOperation()
+    {
+        if (OperationCoordinator.CancelCurrent())
+        {
+            operationStatus = "Cancelling...";
+        }
     }
 
     private void CancelPasswordPrompt()
@@ -315,9 +428,6 @@ else if (workspace.Sessions.Count > 0)
         archivePassword = string.Empty;
         pendingFile = null;
         pendingImporter = null;
-        workspace.ClearSessions();
-        traceSummary = null;
-        importResult = null;
         errorMessage = null;
     }
 

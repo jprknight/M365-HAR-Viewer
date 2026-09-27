@@ -81,6 +81,20 @@ public sealed class CrossCuttingRuleTests
         Assert.Equal(expectedSeverity, result.Severity);
     }
 
+    [Fact]
+    public void AnalysisEngine_ObservesCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var engine = new TraceAnalysisEngine(
+            [new SessionTypeRule(Data)]);
+
+        Assert.Throws<OperationCanceledException>(() =>
+            engine.Analyze(
+                CreateSession("https://example.test/"),
+                cancellation.Token));
+    }
+
     private static TraceAnalysisResult Analyze(
         TraceSession session,
         params ITraceRule[] rules) =>
