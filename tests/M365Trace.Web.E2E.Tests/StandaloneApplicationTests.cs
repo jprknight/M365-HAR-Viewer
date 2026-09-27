@@ -189,10 +189,7 @@ public sealed class StandaloneApplicationTests
             await page
                 .Locator("tbody tr.selected[data-session-id='2']")
                 .WaitForAsync();
-            Assert.Equal(
-                "2",
-                await page.EvaluateAsync<string>(
-                    "() => document.activeElement?.dataset.sessionId"));
+            await WaitForActiveSessionAsync(page, 2);
             Assert.Equal(
                 "true",
                 await secondSession.GetAttributeAsync("aria-selected"));
@@ -201,10 +198,7 @@ public sealed class StandaloneApplicationTests
             await page
                 .Locator("tbody tr.selected[data-session-id='1']")
                 .WaitForAsync();
-            Assert.Equal(
-                "1",
-                await page.EvaluateAsync<string>(
-                    "() => document.activeElement?.dataset.sessionId"));
+            await WaitForActiveSessionAsync(page, 1);
             Assert.Equal(
                 1,
                 await page.Locator("tbody tr.selected").CountAsync());
@@ -217,10 +211,7 @@ public sealed class StandaloneApplicationTests
             await page
                 .Locator("tbody tr.selected[data-session-id='2']")
                 .WaitForAsync();
-            Assert.Equal(
-                "2",
-                await page.EvaluateAsync<string>(
-                    "() => document.activeElement?.dataset.sessionId"));
+            await WaitForActiveSessionAsync(page, 2);
             Assert.Equal(
                 1,
                 await page.Locator("tbody tr.selected").CountAsync());
@@ -243,10 +234,7 @@ public sealed class StandaloneApplicationTests
                 .EvaluateAsync<bool>("element => element === document.activeElement"));
 
             await page.Locator("[data-session-detail]").PressAsync("ArrowLeft");
-            Assert.Equal(
-                "2",
-                await page.EvaluateAsync<string>(
-                    "() => document.activeElement?.dataset.sessionId"));
+            await WaitForActiveSessionAsync(page, 2);
 
             await page.GetByRole(
                     AriaRole.Button,
@@ -355,10 +343,7 @@ public sealed class StandaloneApplicationTests
             await firstLargeSession.FocusAsync();
             await firstLargeSession.PressAsync("End");
             await WaitForSelectedSessionWithDiagnosticsAsync(page, 250);
-            Assert.Equal(
-                "250",
-                await page.EvaluateAsync<string>(
-                    "() => document.activeElement?.dataset.sessionId"));
+            await WaitForActiveSessionAsync(page, 250);
 
             await page.SetViewportSizeAsync(1060, 768);
             await page
@@ -567,6 +552,37 @@ public sealed class StandaloneApplicationTests
                 """);
             throw new Xunit.Sdk.XunitException(
                 $"Expected session {sessionId} to be selected. Grid state: {state}",
+                exception);
+        }
+    }
+
+    private static async Task WaitForActiveSessionAsync(
+        IPage page,
+        int sessionId)
+    {
+        try
+        {
+            await page.WaitForFunctionAsync(
+                """
+                sessionId =>
+                    document.activeElement?.dataset.sessionId
+                    === String(sessionId)
+                """,
+                sessionId);
+        }
+        catch (TimeoutException exception)
+        {
+            var activeElement = await page.EvaluateAsync<string>(
+                """
+                () => JSON.stringify({
+                    tagName: document.activeElement?.tagName,
+                    sessionId: document.activeElement?.dataset.sessionId,
+                    className: document.activeElement?.className
+                })
+                """);
+            throw new Xunit.Sdk.XunitException(
+                $"Expected session {sessionId} to have focus. "
+                + $"Active element: {activeElement}",
                 exception);
         }
     }
