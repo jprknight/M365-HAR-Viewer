@@ -1,7 +1,11 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Text.Json;
+using SharpZipEntry = ICSharpCode.SharpZipLib.Zip.ZipEntry;
+using SharpZipOutputStream = ICSharpCode.SharpZipLib.Zip.ZipOutputStream;
 using Microsoft.Playwright;
 
 namespace M365Trace.Web.E2E.Tests;
@@ -10,6 +14,7 @@ public sealed class StandaloneApplicationTests
 {
     private const string DisableBrowserLaunchEnvironmentVariable =
         "M365_TRACE_DISABLE_BROWSER_LAUNCH";
+    private const string EncryptedSazPassword = "E2E P@ssword";
 
     [Fact]
     public async Task StandalonePackage_SupportsCriticalInvestigationWorkflow()
@@ -40,6 +45,12 @@ public sealed class StandaloneApplicationTests
         var largeHarPath = Path.Combine(
             Path.GetTempPath(),
             $"m365-trace-large-e2e-{Guid.NewGuid():N}.har");
+        var sazPath = Path.Combine(
+            Path.GetTempPath(),
+            $"m365-trace-e2e-{Guid.NewGuid():N}.saz");
+        var encryptedSazPath = Path.Combine(
+            Path.GetTempPath(),
+            $"m365-trace-encrypted-e2e-{Guid.NewGuid():N}.saz");
         Process? process = null;
 
         try
@@ -49,6 +60,8 @@ public sealed class StandaloneApplicationTests
                 warningHarPath,
                 CreateWarningHar());
             await File.WriteAllTextAsync(largeHarPath, CreateLargeHar());
+            CreateSaz(sazPath);
+            CreateEncryptedSaz(encryptedSazPath);
             var startInfo = new ProcessStartInfo
             {
                 FileName = executablePath,
@@ -257,6 +270,72 @@ public sealed class StandaloneApplicationTests
             await page
                 .Locator("input[type=file]")
                 .First
+                .SetInputFilesAsync(sazPath);
+            await WaitForLoadedFileAsync(page, sazPath);
+            await WaitForRowCountWithDiagnosticsAsync(page, 2);
+            Assert.Contains(
+                Path.GetFileName(sazPath),
+                await page.Locator(".panel-heading h2").InnerTextAsync());
+            await page.GetByRole(
+                    AriaRole.Button,
+                    new PageGetByRoleOptions
+                    {
+                        Name = "Response",
+                        Exact = true
+                    })
+                .ClickAsync();
+            await WaitForBodyTextAsync(page, "saz response body");
+
+            await page
+                .Locator("input[type=file]")
+                .First
+                .SetInputFilesAsync(encryptedSazPath);
+            var passwordPrompt = page.Locator(".password-prompt");
+            await passwordPrompt.WaitForAsync();
+            Assert.Contains(
+                Path.GetFileName(encryptedSazPath),
+                await passwordPrompt.InnerTextAsync());
+
+            var passwordInput = page.Locator("input.password-input");
+            await passwordInput.FillAsync("wrong password");
+            await page.GetByRole(
+                    AriaRole.Button,
+                    new PageGetByRoleOptions
+                    {
+                        Name = "Open archive",
+                        Exact = true
+                    })
+                .ClickAsync();
+            await page
+                .Locator("[role=alert]")
+                .Filter(new LocatorFilterOptions
+                {
+                    HasText = "The password is incorrect"
+                })
+                .WaitForAsync();
+            Assert.Equal(string.Empty, await passwordInput.InputValueAsync());
+
+            await passwordInput.FillAsync(EncryptedSazPassword);
+            await page.GetByRole(
+                    AriaRole.Button,
+                    new PageGetByRoleOptions
+                    {
+                        Name = "Open archive",
+                        Exact = true
+                    })
+                .ClickAsync();
+            await passwordPrompt.WaitForAsync(
+                new LocatorWaitForOptions
+                {
+                    State = WaitForSelectorState.Detached
+                });
+            await WaitForLoadedFileAsync(page, encryptedSazPath);
+            await WaitForRowCountWithDiagnosticsAsync(page, 1);
+            await WaitForBodyTextAsync(page, "decrypted browser body");
+
+            await page
+                .Locator("input[type=file]")
+                .First
                 .SetInputFilesAsync(largeHarPath);
             await page.WaitForFunctionAsync(
                 """
@@ -333,6 +412,8 @@ public sealed class StandaloneApplicationTests
             File.Delete(harPath);
             File.Delete(warningHarPath);
             File.Delete(largeHarPath);
+            File.Delete(sazPath);
+            File.Delete(encryptedSazPath);
             File.Delete(outputPath);
             File.Delete(errorPath);
         }
@@ -408,6 +489,49 @@ public sealed class StandaloneApplicationTests
             throw new Xunit.Sdk.XunitException(
                 $"Expected {expectedCount} session rows. "
                 + $"Page content: {await page.ContentAsync()}",
+                exception);
+        }
+    }
+
+    private static async Task WaitForLoadedFileAsync(
+        IPage page,
+        string path)
+    {
+        var fileName = Path.GetFileName(path);
+
+        try
+        {
+            await page
+                .Locator(".panel-heading h2")
+                .Filter(new LocatorFilterOptions { HasText = fileName })
+                .WaitForAsync();
+        }
+        catch (TimeoutException exception)
+        {
+            throw new Xunit.Sdk.XunitException(
+                $"Expected '{fileName}' to become the loaded trace. "
+                + $"Page content: {await page.ContentAsync()}",
+                exception);
+        }
+    }
+
+    private static async Task WaitForBodyTextAsync(
+        IPage page,
+        string expectedText)
+    {
+        try
+        {
+            await page
+                .Locator(".body-content")
+                .Filter(new LocatorFilterOptions { HasText = expectedText })
+                .WaitForAsync();
+        }
+        catch (TimeoutException exception)
+        {
+            throw new Xunit.Sdk.XunitException(
+                $"Expected body text '{expectedText}'. "
+                + $"Detail content: "
+                + $"{await page.Locator("[data-session-detail]").InnerTextAsync()}",
                 exception);
         }
     }
@@ -547,6 +671,95 @@ public sealed class StandaloneApplicationTests
                 entries
             }
         });
+    }
+
+    private static void CreateSaz(string path)
+    {
+        using var stream = File.Create(path);
+        using var archive = new ZipArchive(
+            stream,
+            ZipArchiveMode.Create);
+
+        AddSazEntry(
+            archive,
+            "raw/1_c.txt",
+            "GET /unencrypted HTTP/1.1\r\n"
+            + "Host: example.test\r\n"
+            + "\r\n");
+        AddSazEntry(
+            archive,
+            "raw/1_s.txt",
+            "HTTP/1.1 200 OK\r\n"
+            + "Content-Type: text/plain; charset=utf-8\r\n"
+            + "\r\n"
+            + "saz response body");
+        AddSazEntry(
+            archive,
+            "raw/2_c.txt",
+            "GET /failing HTTP/1.1\r\n"
+            + "Host: outlook.office.com\r\n"
+            + "\r\n");
+        AddSazEntry(
+            archive,
+            "raw/2_s.txt",
+            "HTTP/1.1 503 Service Unavailable\r\n"
+            + "Content-Type: text/plain; charset=utf-8\r\n"
+            + "\r\n"
+            + "temporary failure");
+    }
+
+    private static void CreateEncryptedSaz(string path)
+    {
+        using var stream = File.Create(path);
+        using var archive = new SharpZipOutputStream(stream)
+        {
+            Password = EncryptedSazPassword
+        };
+
+        AddEncryptedSazEntry(
+            archive,
+            "raw/1_c.txt",
+            "GET /encrypted HTTP/1.1\r\n"
+            + "Host: example.test\r\n"
+            + "\r\n");
+        AddEncryptedSazEntry(
+            archive,
+            "raw/1_s.txt",
+            "HTTP/1.1 200 OK\r\n"
+            + "Content-Type: text/plain; charset=utf-8\r\n"
+            + "\r\n"
+            + "decrypted browser body");
+        archive.Finish();
+    }
+
+    private static void AddSazEntry(
+        ZipArchive archive,
+        string path,
+        string content)
+    {
+        var entry = archive.CreateEntry(path);
+        using var writer = new StreamWriter(
+            entry.Open(),
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        writer.Write(content);
+    }
+
+    private static void AddEncryptedSazEntry(
+        SharpZipOutputStream archive,
+        string path,
+        string content)
+    {
+        var bytes = Encoding.UTF8.GetBytes(content);
+        var entry = new SharpZipEntry(path)
+        {
+            AESKeySize = 256,
+            DateTime = new DateTime(2026, 9, 27, 1, 0, 0),
+            Size = bytes.Length
+        };
+
+        archive.PutNextEntry(entry);
+        archive.Write(bytes);
+        archive.CloseEntry();
     }
 
     private static string CreateWarningHar() =>
