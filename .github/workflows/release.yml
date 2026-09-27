@@ -90,8 +90,18 @@ jobs:
           "asset-path=$assetPath" >> $env:GITHUB_OUTPUT
           "asset-name=$assetName" >> $env:GITHUB_OUTPUT
           "sha256=$hash" >> $env:GITHUB_OUTPUT
+          $highlightsPath = ".\docs\v$version-release-notes.md"
+          $highlights = if (Test-Path -LiteralPath $highlightsPath) {
+            Get-Content -LiteralPath $highlightsPath -Raw
+          } else {
+            "See the generated change notes below for details."
+          }
           @"
           ## M365 Trace Analyzer $version
+
+          $highlights
+
+          ## Install
 
           Download and extract ``$assetName``. Open a terminal in the extracted folder and run:
 
@@ -117,4 +127,5 @@ jobs:
           --repo '${{ github.repository }}'
           --title 'M365 Trace Analyzer ${{ github.ref_name }}'
           --notes-file .\artifacts\release-notes.md
+          --generate-notes
           --verify-tag

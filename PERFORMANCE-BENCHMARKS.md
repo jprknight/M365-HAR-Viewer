@@ -77,8 +77,8 @@ Session-grid virtualization was added after this baseline. A focused
 
 | Format | Import | Analysis | Summary | Render | Filter | Sort | Peak |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| HAR | 1,973 ms | 1,598 ms | 199 ms | 258 ms | 54 ms | 155 ms | 595 MiB |
-| SAZ | 5,824 ms | 928 ms | 117 ms | 174 ms | 52 ms | 67 ms | 810 MiB |
+| HAR | 1,868 ms | 1,649 ms | 206 ms | 277 ms | 56 ms | 159 ms | 595 MiB |
+| SAZ | 5,759 ms | 944 ms | 113 ms | 176 ms | 55 ms | 67 ms | 812 MiB |
 
 The initial session-table render now allocates approximately 8.5 MiB for
 100,000 sessions instead of retaining a render tree for every row. Overall

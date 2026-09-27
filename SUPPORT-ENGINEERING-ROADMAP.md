@@ -49,9 +49,10 @@ Status markers in this document apply only where the complete listed outcome has
 - `[x]` Completed and merged into `master`.
 - `[ ]` Planned or only partially implemented. Partial coverage is described inline.
 
-Phases 1 and 2 are complete. Phase 3 concepts were evaluated and removed as out of scope. Phase 4 is underway:
+Phases 1, 2, and 4 are complete. Phase 3 concepts were evaluated and removed as out of scope:
 
 - Release `v1.0.2` delivered the encrypted SAZ, UI, port, classification, and unified-versioning work that formed the roadmap baseline.
+- Release `v1.1.0` delivers trace-wide triage, structured filtering and content search, richer HAR/SAZ fidelity, import diagnostics, cancellable operations, large-trace benchmarks, session-grid virtualization, and packaged HAR/SAZ browser coverage.
 - CI now validates formatting, warning-free builds, 209 solution tests, a 40% aggregate coverage floor, vulnerable NuGet packages, and a self-contained Windows package.
 - A packaged Chromium test validates application startup; HAR, unencrypted SAZ, and AES-256 encrypted SAZ uploads; encrypted-archive password retry; filtering; filter clearing; diagnostic headers; request/response detail selection; and import-warning layout.
 - CodeQL, Dependabot, tag-driven release packaging, checksums, and artifact provenance are configured.
@@ -66,7 +67,7 @@ Phases 1 and 2 are complete. Phase 3 concepts were evaluated and removed as out 
 - HAR and SAZ importers retain richer normalized metadata and recover usable sessions with explicit import-quality reporting.
 - A repeatable benchmark harness now measures 1,000, 10,000, and 100,000-session HAR and SAZ workflows against versioned performance and managed-memory budgets.
 - Long-running imports now expose transient phase status, support cancellation through import, analysis, and summary aggregation, and prevent stale operations from replacing newer selections.
-- The session grid now virtualizes large result sets while preserving table semantics, filtering, sorting, selection, and keyboard navigation across off-screen rows. Focused 100,000-session validation reduced peak managed memory from approximately 1.2-1.5 GiB to 596-810 MiB.
+- The session grid now virtualizes large result sets while preserving table semantics, filtering, sorting, selection, and keyboard navigation across off-screen rows. Focused 100,000-session validation reduced peak managed memory from approximately 1.2-1.5 GiB to 595-812 MiB.
 
 ### Phase 1 — Support-engineer triage essentials
 
@@ -357,8 +358,7 @@ If the selected session is removed from the visible result:
 - [x] Publish a release containing the already-completed encrypted SAZ, UI, port, classification, and versioning improvements before advertising later roadmap features.
 - [x] Add repeatable publish/package verification for the Windows self-contained artifact.
 - [x] Keep the local-only binding guidance and verify packaged static assets in release smoke tests.
-- [ ] Update README capabilities and planned-work sections at each shipped phase.
-  - Partial: the README documents current trace support and links to this roadmap; future shipped phases must continue updating it.
+- [x] Update README capabilities and planned-work sections for the shipped roadmap phases.
 
 ## Architecture notes
 
@@ -400,6 +400,5 @@ If the selected session is removed from the visible result:
 1. [x] Commit and release the completed current-state work.
 2. [x] Complete Phase 1 triage, structured filters, ergonomics, accessibility, and browser coverage.
 3. [x] Expand the core model and importer fidelity with import-quality reporting.
-4. [ ] Harden scale, cancellation, UI regression coverage, and packaging.
-   - Partial: scale benchmarks, cancellation, stale-operation protection, session-grid virtualization, HAR/SAZ packaged-browser coverage, and Windows packaging automation are in place. The remaining work is release/version completion rather than another investigation workflow.
+4. [x] Harden scale, cancellation, UI regression coverage, and packaging.
 5. [ ] Reassess whether an MCP adapter has a concrete support workflow after the standalone investigation experience is proven.
