@@ -15,6 +15,9 @@ public sealed class StandaloneApplicationTests
     private const string DisableBrowserLaunchEnvironmentVariable =
         "M365_TRACE_DISABLE_BROWSER_LAUNCH";
     private const string EncryptedSazPassword = "E2E P@ssword";
+    private const string TestApplicationInsightsConnectionString =
+        "InstrumentationKey=00000000-0000-0000-0000-000000000000;"
+        + "IngestionEndpoint=https://dc.services.visualstudio.com/";
 
     [Fact]
     public async Task StandalonePackage_SupportsCriticalInvestigationWorkflow()
@@ -51,6 +54,9 @@ public sealed class StandaloneApplicationTests
         var encryptedSazPath = Path.Combine(
             Path.GetTempPath(),
             $"m365-trace-encrypted-e2e-{Guid.NewGuid():N}.saz");
+        var telemetrySettingsPath = Path.Combine(
+            Path.GetTempPath(),
+            $"m365-trace-telemetry-e2e-{Guid.NewGuid():N}.json");
         Process? process = null;
 
         try
@@ -74,6 +80,11 @@ public sealed class StandaloneApplicationTests
             };
             startInfo.Environment[
                 DisableBrowserLaunchEnvironmentVariable] = "1";
+            startInfo.Environment[
+                "Telemetry__ApplicationInsightsConnectionString"] =
+                TestApplicationInsightsConnectionString;
+            startInfo.Environment[
+                "Telemetry__SettingsPath"] = telemetrySettingsPath;
             process = Process.Start(startInfo);
             Assert.NotNull(process);
 
@@ -93,6 +104,31 @@ public sealed class StandaloneApplicationTests
             await page.WaitForFunctionAsync(
                 "() => typeof window.Blazor !== 'undefined'");
             await page.WaitForTimeoutAsync(500);
+
+            var telemetryDialog = page.Locator(
+                "dialog.telemetry-consent-dialog");
+            await telemetryDialog.WaitForAsync();
+            Assert.True(await telemetryDialog.EvaluateAsync<bool>(
+                "element => element.open && element.matches(':modal')"));
+            Assert.Contains(
+                "Yes, share anonymous usage",
+                await telemetryDialog.InnerTextAsync());
+            Assert.Contains(
+                "No, do not share",
+                await telemetryDialog.InnerTextAsync());
+            await telemetryDialog
+                .Locator("button")
+                .Filter(new LocatorFilterOptions
+                {
+                    HasText = "No, do not share"
+                })
+                .ClickAsync();
+            await telemetryDialog.WaitForAsync(
+                new LocatorWaitForOptions
+                {
+                    State = WaitForSelectorState.Detached
+                });
+
             await page.Locator("input[type=file]").First.SetInputFilesAsync(harPath);
             await WaitForRowCountWithDiagnosticsAsync(page, 2);
 
@@ -399,6 +435,7 @@ public sealed class StandaloneApplicationTests
             File.Delete(largeHarPath);
             File.Delete(sazPath);
             File.Delete(encryptedSazPath);
+            File.Delete(telemetrySettingsPath);
             File.Delete(outputPath);
             File.Delete(errorPath);
         }

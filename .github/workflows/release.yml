@@ -49,6 +49,15 @@ jobs:
           --self-contained true
           --output .\artifacts\publish\win-x64
 
+      - name: Configure anonymous usage telemetry
+        shell: pwsh
+        env:
+          APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}
+        run: >
+          .\eng\Set-PublishedTelemetryConfiguration.ps1
+          -PublishDirectory .\artifacts\publish\win-x64
+          -ConnectionString $env:APPLICATIONINSIGHTS_CONNECTION_STRING
+
       - name: Smoke test published application
         shell: pwsh
         run: >

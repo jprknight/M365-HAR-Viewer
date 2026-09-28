@@ -29,6 +29,14 @@ jobs:
       - name: Check formatting
         run: dotnet format M365-Trace-Analyzer.sln --verify-no-changes --no-restore
 
+      - name: Test release telemetry configuration
+        shell: pwsh
+        run: ./eng/Test-PublishedTelemetryConfiguration.ps1
+
+      - name: Test telemetry reporting assets
+        shell: pwsh
+        run: ./eng/Test-TelemetryReporting.ps1
+
       - name: Build
         run: dotnet build M365-Trace-Analyzer.sln --configuration Release --no-restore -warnaserror
 

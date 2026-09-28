@@ -29,6 +29,16 @@ At startup, the application makes one anonymous request to the public GitHub Rel
 
 Trace import and analysis continue to work when offline or when the version check fails.
 
+## Privacy and optional usage telemetry
+
+Trace data is always processed locally and is never sent through the optional telemetry channel. Builds configured with a dedicated Application Insights connection string show a full-screen first-run consent prompt for anonymous product-usage telemetry. The user must explicitly choose Yes or No before opening a trace. Consent defaults to off, can be changed at any time, and includes a control to reset the random anonymous installation ID.
+
+The allowlisted telemetry reports application version, operating-system family, architecture, random installation and application-session IDs, coarse trace format, encrypted status, import outcome, session-count and duration buckets, and normalized error codes. It never reports trace names, paths, URLs, hosts, headers, bodies, findings, user or machine identity, tenant or mailbox identifiers, passwords, or exception messages. Exporter offline storage is disabled.
+
+See [Anonymous usage telemetry](docs/USAGE-TELEMETRY.md) for configuration, consent behavior, the complete event schema, and operational safeguards.
+
+Repository-maintained [telemetry reporting queries and workbook deployment instructions](docs/TELEMETRY-REPORTING.md) cover anonymous installations, application sessions, imports, versions, countries or regions, outcomes, and normalized failures.
+
 To publish a version:
 
 1. Update `<Version>`, `<AssemblyVersion>`, and `<FileVersion>` in `M365Trace.Web.csproj`.

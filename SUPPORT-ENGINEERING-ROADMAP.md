@@ -42,7 +42,7 @@ The remaining gaps are less about basic file viewing and more about helping a su
 
 ## Roadmap
 
-### Implementation status — September 27, 2026
+### Implementation status — September 28, 2026
 
 Status markers in this document apply only where the complete listed outcome has been delivered:
 
@@ -53,7 +53,8 @@ Phases 1, 2, and 4 are complete. Phase 3 concepts were evaluated and removed as 
 
 - Release `v1.0.2` delivered the encrypted SAZ, UI, port, classification, and unified-versioning work that formed the roadmap baseline.
 - Release `v1.1.0` delivers trace-wide triage, structured filtering and content search, richer HAR/SAZ fidelity, import diagnostics, cancellable operations, large-trace benchmarks, session-grid virtualization, and packaged HAR/SAZ browser coverage.
-- CI now validates formatting, warning-free builds, 209 solution tests, a 40% aggregate coverage floor, vulnerable NuGet packages, and a self-contained Windows package.
+- Release `v1.1.1` adds explicit privacy-first anonymous usage telemetry, blocking first-run consent, release-time configuration, import-outcome coverage, and a deployable Azure Monitor reporting workbook.
+- CI now validates formatting, warning-free builds, 233 solution tests, release telemetry configuration, a 40% aggregate coverage floor, vulnerable NuGet packages, and a self-contained Windows package.
 - A packaged Chromium test validates application startup; HAR, unencrypted SAZ, and AES-256 encrypted SAZ uploads; encrypted-archive password retry; filtering; filter clearing; diagnostic headers; request/response detail selection; and import-warning layout.
 - CodeQL, Dependabot, tag-driven release packaging, checksums, and artifact provenance are configured.
 - Importer boundary, malformed-input, cancellation, archive safety, component, secure body-preview, and packaged-browser tests have been expanded.
@@ -68,6 +69,18 @@ Phases 1, 2, and 4 are complete. Phase 3 concepts were evaluated and removed as 
 - A repeatable benchmark harness now measures 1,000, 10,000, and 100,000-session HAR and SAZ workflows against versioned performance and managed-memory budgets.
 - Long-running imports now expose transient phase status, support cancellation through import, analysis, and summary aggregation, and prevent stale operations from replacing newer selections.
 - The session grid now virtualizes large result sets while preserving table semantics, filtering, sorting, selection, and keyboard navigation across off-screen rows. Focused 100,000-session validation reduced peak managed memory from approximately 1.2-1.5 GiB to 595-812 MiB.
+
+### Phase 5 — Privacy-first product usage telemetry
+
+1. [x] Add an isolated Azure Monitor OpenTelemetry exporter that emits only explicit product-usage events and disables offline storage.
+2. [x] Add blocking first-run explicit Yes/No consent, a persistent on/off setting, a random anonymous installation ID, a per-process application-session ID, and an ID reset control.
+3. [x] Report application starts and coarse trace-import outcomes without filenames, paths, URLs, hosts, headers, bodies, findings, identity data, device identifiers, passwords, or exception messages.
+4. [x] Add service and component tests covering opt-out behavior, stable and reset installation IDs, coarse bucketing, sink-failure isolation, consent UI, complete/partial/failed/cancelled imports, password-required and invalid-password behavior, and release configuration injection.
+5. [ ] Provision a dedicated Application Insights resource with IP masking, a daily cap, cost alerts, and restricted reporting access.
+6. [x] Inject the dedicated connection string into release packages from an encrypted GitHub repository secret without committing it to source.
+7. [x] Create reviewed queries and a deployable workbook for installations, application sessions, imports, versions, countries or regions, outcomes, and normalized failures.
+
+Telemetry remains unavailable when no connection string is configured. The desktop connection string is treated as a routing identifier rather than a secret; reporting must tolerate spoofed events and unexpected volume. MCP integration remains deferred and is not part of this phase.
 
 ### Phase 1 — Support-engineer triage essentials
 
