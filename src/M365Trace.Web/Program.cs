@@ -5,6 +5,7 @@ using M365Trace.Import.Saz;
 using M365Trace.Rules;
 using M365Trace.Rules.Legacy;
 using M365Trace.Web.Services;
+using M365Trace.Web.Services.Telemetry;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 
@@ -26,6 +27,23 @@ builder.Services.AddSingleton<TraceSummaryService>();
 builder.Services.AddSingleton<DiagnosticHeaderService>();
 builder.Services.AddScoped<TraceOperationCoordinator>();
 builder.Services.AddSingleton<DefaultBrowserLauncher>();
+builder.Services.AddSingleton<IApplicationDataPathProvider, ApplicationDataPathProvider>();
+builder.Services.AddSingleton<ITelemetrySettingsStore, FileTelemetrySettingsStore>();
+var telemetryOptions = new UsageTelemetryOptions();
+builder.Configuration
+    .GetSection(UsageTelemetryOptions.SectionName)
+    .Bind(telemetryOptions);
+builder.Services.AddSingleton(telemetryOptions);
+builder.Services.AddSingleton<IUsageTelemetrySink>(serviceProvider =>
+    string.IsNullOrWhiteSpace(
+        telemetryOptions.ApplicationInsightsConnectionString)
+        ? new NullUsageTelemetrySink()
+        : new AzureMonitorUsageTelemetrySink(
+            telemetryOptions,
+            serviceProvider
+                .GetRequiredService<VersionUpdateService>()
+                .CurrentVersion));
+builder.Services.AddSingleton<IUsageTelemetryService, UsageTelemetryService>();
 builder.Services.AddSingleton<ITraceImporter, HarTraceImporter>();
 builder.Services.AddSingleton<ITraceImporter, SazTraceImporter>();
 builder.Services.AddSingleton<LegacyRulesetData>();
@@ -73,4 +91,8 @@ app.Lifetime.ApplicationStarted.Register(() =>
     browserLauncher.TryLaunch(addresses);
 });
 
-app.Run();
+await app.Services
+    .GetRequiredService<IUsageTelemetryService>()
+    .InitializeAsync();
+
+await app.RunAsync();

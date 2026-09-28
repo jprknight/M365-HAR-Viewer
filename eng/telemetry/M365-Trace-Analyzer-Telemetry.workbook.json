@@ -1,0 +1,128 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# M365 Trace Analyzer usage telemetry\n\nPrivacy-first reporting for the allowlisted `ApplicationStarted` and `TraceImportCompleted` events. All panels use a rolling 30-day window and telemetry schema version 1. Values can be spoofed because the desktop connection string is a routing identifier, not an authentication secret."
+      },
+      "name": "Telemetry overview"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let UsageEvents = AppEvents\n| where TimeGenerated > ago(30d)\n| where tostring(Properties[\"CategoryName\"]) == \"M365TraceAnalyzer.UsageTelemetry\"\n| where tostring(Properties[\"telemetry_schema_version\"]) == \"1\"\n| where Name in (\"ApplicationStarted\", \"TraceImportCompleted\")\n| extend InstallationId = tostring(Properties[\"installation_id\"]), ApplicationSessionId = tostring(Properties[\"application_session_id\"]), Outcome = tostring(Properties[\"outcome\"]);\nUsageEvents\n| summarize Installations = dcountif(InstallationId, Name == \"ApplicationStarted\"), ApplicationSessions = dcountif(ApplicationSessionId, Name == \"ApplicationStarted\"), TraceImports = countif(Name == \"TraceImportCompleted\"), CompleteImports = countif(Name == \"TraceImportCompleted\" and Outcome == \"complete\"), PartialImports = countif(Name == \"TraceImportCompleted\" and Outcome == \"partial\"), FailedImports = countif(Name == \"TraceImportCompleted\" and Outcome == \"failed\"), CancelledImports = countif(Name == \"TraceImportCompleted\" and Outcome == \"cancelled\")",
+        "size": 0,
+        "title": "30-day overview",
+        "timeContext": {
+          "durationMs": 2592000000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "name": "Overview metrics"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AppEvents\n| where TimeGenerated > ago(30d)\n| where tostring(Properties[\"CategoryName\"]) == \"M365TraceAnalyzer.UsageTelemetry\"\n| where tostring(Properties[\"telemetry_schema_version\"]) == \"1\"\n| where Name in (\"ApplicationStarted\", \"TraceImportCompleted\")\n| extend InstallationId = tostring(Properties[\"installation_id\"]), ApplicationSessionId = tostring(Properties[\"application_session_id\"])\n| summarize Installations = dcountif(InstallationId, Name == \"ApplicationStarted\"), ApplicationSessions = dcountif(ApplicationSessionId, Name == \"ApplicationStarted\"), TraceImports = countif(Name == \"TraceImportCompleted\") by bin(TimeGenerated, 1d)\n| order by TimeGenerated asc",
+        "size": 0,
+        "title": "Daily adoption and imports",
+        "timeContext": {
+          "durationMs": 2592000000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      },
+      "name": "Daily adoption"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AppEvents\n| where TimeGenerated > ago(30d)\n| where tostring(Properties[\"CategoryName\"]) == \"M365TraceAnalyzer.UsageTelemetry\"\n| where tostring(Properties[\"telemetry_schema_version\"]) == \"1\"\n| where Name in (\"ApplicationStarted\", \"TraceImportCompleted\")\n| extend InstallationId = tostring(Properties[\"installation_id\"]), ApplicationSessionId = tostring(Properties[\"application_session_id\"]), AppVersion = tostring(Properties[\"app_version\"])\n| summarize Installations = dcountif(InstallationId, Name == \"ApplicationStarted\"), ApplicationSessions = dcountif(ApplicationSessionId, Name == \"ApplicationStarted\"), TraceImports = countif(Name == \"TraceImportCompleted\") by AppVersion\n| order by AppVersion desc",
+        "size": 0,
+        "title": "Version adoption",
+        "timeContext": {
+          "durationMs": 2592000000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "barchart"
+      },
+      "name": "Version adoption"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AppEvents\n| where TimeGenerated > ago(30d)\n| where Name == \"ApplicationStarted\"\n| where tostring(Properties[\"CategoryName\"]) == \"M365TraceAnalyzer.UsageTelemetry\"\n| where tostring(Properties[\"telemetry_schema_version\"]) == \"1\"\n| extend InstallationId = tostring(Properties[\"installation_id\"]), ApplicationSessionId = tostring(Properties[\"application_session_id\"])\n| summarize Installations = dcount(InstallationId), ApplicationSessions = dcount(ApplicationSessionId) by ClientCountryOrRegion\n| order by Installations desc",
+        "size": 0,
+        "title": "Country or region",
+        "timeContext": {
+          "durationMs": 2592000000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "barchart"
+      },
+      "name": "Country or region"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AppEvents\n| where TimeGenerated > ago(30d)\n| where Name == \"TraceImportCompleted\"\n| where tostring(Properties[\"CategoryName\"]) == \"M365TraceAnalyzer.UsageTelemetry\"\n| where tostring(Properties[\"telemetry_schema_version\"]) == \"1\"\n| extend Format = tostring(Properties[\"format\"]), Outcome = tostring(Properties[\"outcome\"])\n| summarize Imports = count() by Outcome, Format\n| order by Imports desc",
+        "size": 0,
+        "title": "Import outcomes by format",
+        "timeContext": {
+          "durationMs": 2592000000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "piechart"
+      },
+      "name": "Import outcomes"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AppEvents\n| where TimeGenerated > ago(30d)\n| where Name == \"TraceImportCompleted\"\n| where tostring(Properties[\"CategoryName\"]) == \"M365TraceAnalyzer.UsageTelemetry\"\n| where tostring(Properties[\"telemetry_schema_version\"]) == \"1\"\n| extend AppVersion = tostring(Properties[\"app_version\"]), Format = tostring(Properties[\"format\"]), Outcome = tostring(Properties[\"outcome\"]), ErrorCode = tostring(Properties[\"error_code\"])\n| where Outcome in (\"partial\", \"failed\", \"cancelled\") or ErrorCode != \"none\"\n| summarize Attempts = count() by Outcome, ErrorCode, Format, AppVersion\n| order by Attempts desc",
+        "size": 0,
+        "title": "Normalized failures, partial imports, and cancellations",
+        "timeContext": {
+          "durationMs": 2592000000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "name": "Normalized failures"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AppEvents\n| where TimeGenerated > ago(30d)\n| where Name == \"TraceImportCompleted\"\n| where tostring(Properties[\"CategoryName\"]) == \"M365TraceAnalyzer.UsageTelemetry\"\n| where tostring(Properties[\"telemetry_schema_version\"]) == \"1\"\n| extend Format = tostring(Properties[\"format\"]), Encrypted = tostring(Properties[\"encrypted\"]), SessionCountBucket = tostring(Properties[\"session_count_bucket\"]), DurationBucket = tostring(Properties[\"duration_bucket\"])\n| summarize Imports = count() by Format, Encrypted, SessionCountBucket, DurationBucket\n| order by Imports desc",
+        "size": 0,
+        "title": "Import profile",
+        "timeContext": {
+          "durationMs": 2592000000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "name": "Import profile"
+    }
+  ],
+  "isLocked": false,
+  "fallbackResourceIds": [
+    "Azure Monitor"
+  ]
+}
