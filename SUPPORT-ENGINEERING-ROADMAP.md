@@ -52,8 +52,7 @@ Status markers in this document apply only where the complete listed outcome has
 Phases 1, 2, and 4 are complete. Phase 3 concepts were evaluated and removed as out of scope:
 
 - Release `v1.0.2` delivered the encrypted SAZ, UI, port, classification, and unified-versioning work that formed the roadmap baseline.
-- Release `v1.1.0` delivers trace-wide triage, structured filtering and content search, richer HAR/SAZ fidelity, import diagnostics, cancellable operations, large-trace benchmarks, session-grid virtualization, and packaged HAR/SAZ browser coverage.
-- Release `v1.1.1` adds explicit privacy-first anonymous usage telemetry, blocking first-run consent, release-time configuration, import-outcome coverage, and a deployable Azure Monitor reporting workbook.
+- Release `v1.0.3` delivers trace-wide triage, structured filtering and content search, richer HAR/SAZ fidelity, import diagnostics, cancellable operations, large-trace benchmarks, session-grid virtualization, packaged HAR/SAZ browser coverage, explicit privacy-first anonymous usage telemetry, blocking first-run consent, release-time configuration, import-outcome coverage, and a deployable Azure Monitor reporting workbook.
 - CI now validates formatting, warning-free builds, 233 solution tests, release telemetry configuration, a 40% aggregate coverage floor, vulnerable NuGet packages, and a self-contained Windows package.
 - A packaged Chromium test validates application startup; HAR, unencrypted SAZ, and AES-256 encrypted SAZ uploads; encrypted-archive password retry; filtering; filter clearing; diagnostic headers; request/response detail selection; and import-warning layout.
 - CodeQL, Dependabot, tag-driven release packaging, checksums, and artifact provenance are configured.

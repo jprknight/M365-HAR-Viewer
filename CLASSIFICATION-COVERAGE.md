@@ -1,6 +1,6 @@
 # Classification coverage
 
-M365 Trace Analyzer application version **1.1.1** includes ruleset schema version **1**.
+M365 Trace Analyzer application version **1.0.3** includes ruleset schema version **1**.
 
 The application includes **151 session classifications**, implemented by **43 processing components**. A processing component can produce multiple user-facing classifications, so the component count is not expected to match the classification count.
 
