@@ -7,6 +7,7 @@ using M365Trace.Rules;
 using M365Trace.Web.Components;
 using M365Trace.Web.Components.Pages;
 using M365Trace.Web.Services;
+using M365Trace.Web.Services.Telemetry;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,6 +18,7 @@ public sealed class HomeTests : IDisposable
     private readonly BunitContext _context = new();
     private readonly StubTraceImporter _importer = new();
     private readonly StubHttpMessageHandler _httpHandler = new();
+    private readonly StubUsageTelemetryService _telemetry = new();
 
     public HomeTests()
     {
@@ -30,6 +32,112 @@ public sealed class HomeTests : IDisposable
         _context.Services.AddSingleton<TraceSummaryService>();
         _context.Services.AddSingleton<DiagnosticHeaderService>();
         _context.Services.AddSingleton<TraceOperationCoordinator>();
+        _context.Services.AddSingleton<IUsageTelemetryService>(_telemetry);
+    }
+
+    [Fact]
+    public void AvailableTelemetry_WithUnknownConsent_RequiresExplicitChoice()
+    {
+        _telemetry.IsAvailable = true;
+
+        var component = _context.Render<Home>();
+
+        var prompt = component.Find("dialog.telemetry-consent-dialog");
+        Assert.Contains("Share anonymous usage telemetry?", prompt.TextContent);
+        Assert.Contains("Trace names, paths, URLs", prompt.TextContent);
+        Assert.Contains("Yes, share anonymous usage", prompt.TextContent);
+        Assert.Contains("No, do not share", prompt.TextContent);
+        var privacyLink = prompt.QuerySelector("a.telemetry-privacy-link");
+        Assert.NotNull(privacyLink);
+        Assert.Equal(
+            "https://github.com/jprknight/M365-Trace-Analyzer/blob/master/docs/USAGE-TELEMETRY.md",
+            privacyLink.GetAttribute("href"));
+
+        component.FindAll(".telemetry-consent-dialog button")
+            .Single(button =>
+                button.TextContent.Contains("Yes, share anonymous usage"))
+            .Click();
+
+        component.WaitForAssertion(() =>
+        {
+            Assert.Equal(TelemetryConsent.Enabled, _telemetry.Consent);
+            Assert.Equal(1, _telemetry.SetConsentCalls);
+            Assert.Empty(component.FindAll("dialog.telemetry-consent-dialog"));
+            Assert.DoesNotContain("Telemetry is on", component.Markup);
+        });
+
+        component.Find("button.telemetry-settings-button").Click();
+
+        component.WaitForAssertion(() =>
+        {
+            var settings = component.Find("section.telemetry-settings-panel");
+            Assert.Equal(
+                "https://github.com/jprknight/M365-Trace-Analyzer/blob/master/docs/USAGE-TELEMETRY.md",
+                settings.QuerySelector("a.telemetry-privacy-link")
+                    ?.GetAttribute("href"));
+        });
+    }
+
+    [Fact]
+    public void RejectingTelemetry_RecordsDecisionAndUnlocksApplication()
+    {
+        _telemetry.IsAvailable = true;
+        var component = _context.Render<Home>();
+
+        component.FindAll(".telemetry-consent-dialog button")
+            .Single(button =>
+                button.TextContent.Contains("No, do not share"))
+            .Click();
+
+        component.WaitForAssertion(() =>
+        {
+            Assert.Equal(TelemetryConsent.Disabled, _telemetry.Consent);
+            Assert.Equal(1, _telemetry.SetConsentCalls);
+            Assert.Empty(component.FindAll("dialog.telemetry-consent-dialog"));
+            Assert.Equal(2, component.FindAll("label.file-button").Count);
+        });
+    }
+
+    [Fact]
+    public void UnavailableTelemetry_DoesNotShowPrompt()
+    {
+        var component = _context.Render<Home>();
+
+        Assert.Empty(component.FindAll("dialog.telemetry-consent-dialog"));
+        Assert.DoesNotContain("Telemetry:", component.Markup);
+    }
+
+    [Fact]
+    public void SuccessfulImport_RecordsOnlyCoarseUsageOutcome()
+    {
+        _telemetry.IsAvailable = true;
+        _telemetry.Consent = TelemetryConsent.Enabled;
+
+        RenderAndLoad("customer-trace.har");
+
+        var import = Assert.Single(_telemetry.Imports);
+        Assert.Equal(UsageTraceFormat.Har, import.Format);
+        Assert.False(import.Encrypted);
+        Assert.Equal(UsageTraceImportOutcome.Complete, import.Outcome);
+        Assert.Equal(3, import.SessionCount);
+        Assert.Equal(UsageTraceImportError.None, import.Error);
+    }
+
+    [Fact]
+    public void ActiveImport_UsesInlineVersionStatusWithoutWarningCard()
+    {
+        _context.Services
+            .GetRequiredService<TraceOperationCoordinator>()
+            .Begin();
+
+        var component = _context.Render<Home>();
+
+        var status = component.Find(".trace-operation-inline");
+        Assert.Contains(
+            "version-card",
+            status.ParentElement!.ClassList);
+        Assert.Empty(component.FindAll(".trace-operation-status"));
+        Assert.Equal("Cancel", status.QuerySelector("button")?.TextContent.Trim());
     }
 
     [Fact]
@@ -240,8 +348,87 @@ public sealed class HomeTests : IDisposable
     }
 
     [Fact]
+    public void FailedImport_RecordsNormalizedTelemetry()
+    {
+        _telemetry.IsAvailable = true;
+        _telemetry.Consent = TelemetryConsent.Enabled;
+        _importer.Import = _ =>
+            Task.FromException<IReadOnlyList<TraceSession>>(
+                new TraceImportException("Sensitive source detail."));
+        var component = _context.Render<Home>();
+
+        Upload(component, "customer-trace.har");
+
+        component.WaitForAssertion(() =>
+        {
+            var import = Assert.Single(_telemetry.Imports);
+            Assert.Equal(UsageTraceFormat.Har, import.Format);
+            Assert.False(import.Encrypted);
+            Assert.Equal(UsageTraceImportOutcome.Failed, import.Outcome);
+            Assert.Null(import.SessionCount);
+            Assert.Equal(
+                UsageTraceImportError.ImportRejected,
+                import.Error);
+        });
+    }
+
+    [Fact]
+    public void CancelledImport_RecordsCancelledTelemetry()
+    {
+        _telemetry.IsAvailable = true;
+        _telemetry.Consent = TelemetryConsent.Enabled;
+        var coordinator = _context.Services
+            .GetRequiredService<TraceOperationCoordinator>();
+        _importer.ImportReport = _ =>
+        {
+            coordinator.CancelCurrent();
+            return Task.FromCanceled<TraceImportResult>(
+                new CancellationToken(canceled: true));
+        };
+        var component = _context.Render<Home>();
+
+        Upload(component, "cancelled.har");
+
+        component.WaitForAssertion(() =>
+        {
+            var import = Assert.Single(_telemetry.Imports);
+            Assert.Equal(UsageTraceFormat.Har, import.Format);
+            Assert.Equal(
+                UsageTraceImportOutcome.Cancelled,
+                import.Outcome);
+            Assert.Null(import.SessionCount);
+            Assert.Equal(UsageTraceImportError.None, import.Error);
+        });
+    }
+
+    [Fact]
+    public void PartialImport_RecordsPartialTelemetry()
+    {
+        _telemetry.IsAvailable = true;
+        _telemetry.Consent = TelemetryConsent.Enabled;
+        _importer.ImportReport = _ => Task.FromResult(
+            TraceImportResult.Create(
+                _importer.Sessions,
+                [
+                    new TraceImportIssue(
+                        TraceImportIssueCategory.SkippedSession,
+                        "A session was skipped.")
+                ],
+                sourceSessionCount: 4));
+
+        RenderAndLoad();
+
+        var import = Assert.Single(_telemetry.Imports);
+        Assert.Equal(UsageTraceImportOutcome.Partial, import.Outcome);
+        Assert.Equal(3, import.SessionCount);
+        Assert.Equal(UsageTraceImportError.None, import.Error);
+    }
+
+    [Fact]
     public void PasswordProtectedSaz_ShowsPromptAndCanBeCancelled()
     {
+        _telemetry.IsAvailable = true;
+        _telemetry.Consent = TelemetryConsent.Enabled;
         _importer.Import = options =>
             options?.Password is null
                 ? Task.FromException<IReadOnlyList<TraceSession>>(
@@ -265,6 +452,7 @@ public sealed class HomeTests : IDisposable
         {
             Assert.DoesNotContain("Password required", component.Markup);
             Assert.Contains("Open a HAR or SAZ trace", component.Markup);
+            Assert.Empty(_telemetry.Imports);
         });
     }
 
@@ -296,12 +484,15 @@ public sealed class HomeTests : IDisposable
     [Fact]
     public void WrongPassword_ShowsErrorAndClearsPasswordField()
     {
+        _telemetry.IsAvailable = true;
+        _telemetry.Consent = TelemetryConsent.Enabled;
         _importer.Import = options =>
             options?.Password is null
                 ? Task.FromException<IReadOnlyList<TraceSession>>(
                     new SazPasswordRequiredException())
                 : Task.FromException<IReadOnlyList<TraceSession>>(
-                    new TraceImportException("The SAZ password is incorrect."));
+                    new SazInvalidPasswordException(
+                        new InvalidDataException("Sensitive detail.")));
         var component = _context.Render<Home>();
 
         Upload(component, "protected.saz");
@@ -310,11 +501,20 @@ public sealed class HomeTests : IDisposable
 
         component.WaitForAssertion(() =>
         {
-            Assert.Contains("The SAZ password is incorrect.", component.Markup);
+            Assert.Contains(
+                "The password is incorrect or the SAZ archive cannot be decrypted.",
+                component.Markup);
             Assert.Equal(
                 string.Empty,
                 component.Find("input.password-input").GetAttribute("value"));
             Assert.Contains("Password required", component.Markup);
+            var import = Assert.Single(_telemetry.Imports);
+            Assert.Equal(UsageTraceFormat.Saz, import.Format);
+            Assert.True(import.Encrypted);
+            Assert.Equal(UsageTraceImportOutcome.Failed, import.Outcome);
+            Assert.Equal(
+                UsageTraceImportError.PasswordIncorrect,
+                import.Error);
         });
     }
 
@@ -971,6 +1171,64 @@ public sealed class HomeTests : IDisposable
                 await ImportAsync(stream, options, cancellationToken));
         }
     }
+
+    private sealed class StubUsageTelemetryService :
+        IUsageTelemetryService
+    {
+        public bool IsAvailable { get; set; }
+
+        public TelemetryConsent Consent { get; set; } =
+            TelemetryConsent.Unknown;
+
+        public string ApplicationSessionId { get; } =
+            Guid.NewGuid().ToString("N");
+
+        public int SetConsentCalls { get; private set; }
+
+        public List<RecordedImport> Imports { get; } = [];
+
+        public Task InitializeAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task SetConsentAsync(
+            TelemetryConsent consent,
+            CancellationToken cancellationToken = default)
+        {
+            Consent = consent;
+            SetConsentCalls++;
+            return Task.CompletedTask;
+        }
+
+        public Task ResetInstallationIdAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public void TrackTraceImportCompleted(
+            UsageTraceFormat format,
+            bool encrypted,
+            UsageTraceImportOutcome outcome,
+            int? sessionCount,
+            TimeSpan duration,
+            UsageTraceImportError error = UsageTraceImportError.None)
+        {
+            Imports.Add(new RecordedImport(
+                format,
+                encrypted,
+                outcome,
+                sessionCount,
+                duration,
+                error));
+        }
+    }
+
+    private sealed record RecordedImport(
+        UsageTraceFormat Format,
+        bool Encrypted,
+        UsageTraceImportOutcome Outcome,
+        int? SessionCount,
+        TimeSpan Duration,
+        UsageTraceImportError Error);
 
     private sealed class TestAnalysisRule : ITraceRule
     {

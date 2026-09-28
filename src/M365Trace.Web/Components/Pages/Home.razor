@@ -1,10 +1,13 @@
 @page "/"
+@using System.Diagnostics
+@using M365Trace.Web.Services.Telemetry
 @inject IEnumerable<ITraceImporter> TraceImporters
 @inject TraceAnalysisEngine AnalysisEngine
 @inject M365Trace.Web.Services.VersionUpdateService VersionUpdateService
 @inject M365Trace.Web.Services.SessionQueryService SessionQueryService
 @inject M365Trace.Web.Services.TraceSummaryService TraceSummaryService
 @inject M365Trace.Web.Services.TraceOperationCoordinator OperationCoordinator
+@inject IUsageTelemetryService UsageTelemetry
 
 <PageTitle>M365 Trace Analyzer</PageTitle>
 
@@ -19,7 +22,19 @@
         <div class="version-card @GetVersionStatusClass()"
              title="@versionCheck?.Detail">
             <span>Version @VersionUpdateService.CurrentVersion</span>
-            @if (versionCheck is null)
+            @if (isLoading)
+            {
+                <div class="trace-operation-inline"
+                     role="status"
+                     aria-live="polite">
+                    <strong>@operationStatus</strong>
+                    <button type="button"
+                            @onclick="CancelActiveOperation">
+                        Cancel
+                    </button>
+                </div>
+            }
+            else if (versionCheck is null)
             {
                 <strong>Checking for updates...</strong>
             }
@@ -44,18 +59,13 @@
             }
         </div>
 
-        @if (isLoading)
+        @if (UsageTelemetry.IsAvailable)
         {
-            <div class="trace-operation-status"
-                 role="status"
-                 aria-live="polite">
-                <span>@operationStatus</span>
-                <button type="button"
-                        class="secondary-action-button"
-                        @onclick="CancelActiveOperation">
-                    Cancel
-                </button>
-            </div>
+            <button type="button"
+                    class="telemetry-settings-button"
+                    @onclick="ToggleTelemetrySettings">
+                Telemetry: @GetTelemetryStatusText()
+            </button>
         }
 
         <label class="file-button">
@@ -65,6 +75,120 @@
         </label>
     </div>
 </header>
+
+@if (UsageTelemetry.IsAvailable
+    && UsageTelemetry.Consent == TelemetryConsent.Unknown)
+{
+    <dialog class="telemetry-consent-dialog"
+            data-telemetry-consent
+            aria-labelledby="telemetry-consent-heading"
+            aria-describedby="telemetry-consent-description">
+        <section class="telemetry-consent-card">
+            <div>
+                <p class="eyebrow">Privacy choice required</p>
+                <h2 id="telemetry-consent-heading">
+                    Share anonymous usage telemetry?
+                </h2>
+                <p id="telemetry-consent-description">
+                    Help improve M365 Trace Analyzer by sharing app version,
+                    operating-system family, anonymous application sessions,
+                    country derived by Application Insights, and coarse trace
+                    import outcomes.
+                </p>
+                <p>
+                    Trace names, paths, URLs, hosts, headers, bodies, findings,
+                    account details, and device identifiers are never
+                    collected. Trace processing remains local whether you
+                    choose Yes or No.
+                </p>
+                <a class="telemetry-privacy-link"
+                   href="https://github.com/jprknight/M365-Trace-Analyzer/blob/master/docs/USAGE-TELEMETRY.md"
+                   target="_blank"
+                   rel="noopener noreferrer">
+                    Review the telemetry privacy details
+                </a>
+                @if (!string.IsNullOrWhiteSpace(telemetrySettingsError))
+                {
+                    <p class="telemetry-settings-error" role="alert">
+                        @telemetrySettingsError
+                    </p>
+                }
+            </div>
+            <div class="telemetry-consent-actions">
+                <button type="button"
+                        class="primary-button"
+                        @onclick="EnableTelemetryAsync">
+                    Yes, share anonymous usage
+                </button>
+                <button type="button"
+                        class="secondary-action-button"
+                        @onclick="DisableTelemetryAsync">
+                    No, do not share
+                </button>
+            </div>
+        </section>
+    </dialog>
+}
+
+@if (UsageTelemetry.IsAvailable
+    && UsageTelemetry.Consent != TelemetryConsent.Unknown
+    && showTelemetrySettings)
+{
+    <section class="telemetry-settings-panel"
+             aria-labelledby="telemetry-settings-heading">
+        <div>
+            <p class="eyebrow">Optional product analytics</p>
+            <h2 id="telemetry-settings-heading">Anonymous usage telemetry</h2>
+            <p>
+                Trace names, paths, URLs, hosts, headers, bodies, findings,
+                account details, and device identifiers are never collected.
+            </p>
+            <a class="telemetry-privacy-link"
+               href="https://github.com/jprknight/M365-Trace-Analyzer/blob/master/docs/USAGE-TELEMETRY.md"
+               target="_blank"
+               rel="noopener noreferrer">
+                Review the telemetry privacy details
+            </a>
+            @if (!string.IsNullOrWhiteSpace(telemetrySettingsError))
+            {
+                <p class="telemetry-settings-error" role="alert">
+                    @telemetrySettingsError
+                </p>
+            }
+        </div>
+        <div class="telemetry-consent-actions">
+            @if (UsageTelemetry.Consent == TelemetryConsent.Enabled)
+            {
+                <strong class="telemetry-enabled">Telemetry is on</strong>
+                <button type="button"
+                        class="secondary-action-button"
+                        @onclick="ResetTelemetryIdAsync">
+                    Reset anonymous ID
+                </button>
+                <button type="button"
+                        class="secondary-action-button"
+                        @onclick="DisableTelemetryAsync">
+                    Turn off
+                </button>
+            }
+            else
+            {
+                <strong>Telemetry is off</strong>
+                <button type="button"
+                        class="primary-button"
+                        @onclick="EnableTelemetryAsync">
+                    Turn on
+                </button>
+            }
+
+            <button type="button"
+                    class="secondary-action-button"
+                    @onclick="CloseTelemetrySettings">
+                Close
+            </button>
+        </div>
+    </section>
+}
 
 @if (!string.IsNullOrWhiteSpace(errorMessage))
 {
@@ -175,6 +299,8 @@ else if (workspace.Sessions.Count > 0)
     private ITraceImporter? pendingImporter;
     private M365Trace.Web.Services.VersionCheckResult? versionCheck;
     private DetailTrafficView trafficView = DetailTrafficView.Both;
+    private bool showTelemetrySettings;
+    private string? telemetrySettingsError;
 
     private bool isLoading => OperationCoordinator.HasActiveOperation;
 
@@ -244,6 +370,7 @@ else if (workspace.Sessions.Count > 0)
 
     private async Task LoadTraceAsync(InputFileChangeEventArgs args)
     {
+        var telemetryStartedAt = Stopwatch.GetTimestamp();
         var operation = OperationCoordinator.Begin();
         operationStatus = $"Opening {args.File.Name}...";
         errorMessage = null;
@@ -260,7 +387,12 @@ else if (workspace.Sessions.Count > 0)
                 candidate.CanImport(file.Name))
                 ?? throw new TraceImportException(
                     "Select a supported .har or .saz trace file.");
-            await ImportTraceAsync(file, importer, operation);
+            await ImportTraceAsync(
+                file,
+                importer,
+                operation,
+                telemetryStartedAt,
+                encrypted: false);
         }
         catch (SazPasswordRequiredException)
         {
@@ -273,6 +405,11 @@ else if (workspace.Sessions.Count > 0)
         catch (OperationCanceledException)
             when (operation.CancellationToken.IsCancellationRequested)
         {
+            TrackImportOutcome(
+                file,
+                encrypted: false,
+                UsageTraceImportOutcome.Cancelled,
+                telemetryStartedAt);
         }
         catch (Exception exception) when (
             exception is TraceImportException
@@ -283,6 +420,13 @@ else if (workspace.Sessions.Count > 0)
             {
                 errorMessage = exception.Message;
             }
+
+            TrackImportOutcome(
+                file,
+                encrypted: false,
+                UsageTraceImportOutcome.Failed,
+                telemetryStartedAt,
+                error: GetTelemetryError(exception));
         }
         finally
         {
@@ -302,6 +446,7 @@ else if (workspace.Sessions.Count > 0)
             return;
         }
 
+        var telemetryStartedAt = Stopwatch.GetTimestamp();
         var file = pendingFile;
         var importer = pendingImporter;
         var operation = OperationCoordinator.Begin();
@@ -316,11 +461,18 @@ else if (workspace.Sessions.Count > 0)
                 file,
                 importer,
                 operation,
-                new TraceImportOptions { Password = password });
+                telemetryStartedAt,
+                encrypted: true,
+                options: new TraceImportOptions { Password = password });
         }
         catch (OperationCanceledException)
             when (operation.CancellationToken.IsCancellationRequested)
         {
+            TrackImportOutcome(
+                file,
+                encrypted: true,
+                UsageTraceImportOutcome.Cancelled,
+                telemetryStartedAt);
         }
         catch (Exception exception) when (
             exception is TraceImportException
@@ -331,6 +483,13 @@ else if (workspace.Sessions.Count > 0)
             {
                 errorMessage = exception.Message;
             }
+
+            TrackImportOutcome(
+                file,
+                encrypted: true,
+                UsageTraceImportOutcome.Failed,
+                telemetryStartedAt,
+                error: GetTelemetryError(exception));
         }
         finally
         {
@@ -345,6 +504,8 @@ else if (workspace.Sessions.Count > 0)
         IBrowserFile file,
         ITraceImporter importer,
         M365Trace.Web.Services.TraceOperation operation,
+        long telemetryStartedAt,
+        bool encrypted,
         TraceImportOptions? options = null)
     {
         var cancellationToken = operation.CancellationToken;
@@ -372,6 +533,11 @@ else if (workspace.Sessions.Count > 0)
         cancellationToken.ThrowIfCancellationRequested();
         if (!OperationCoordinator.IsCurrent(operation))
         {
+            TrackImportOutcome(
+                file,
+                encrypted,
+                UsageTraceImportOutcome.Cancelled,
+                telemetryStartedAt);
             return;
         }
 
@@ -380,6 +546,14 @@ else if (workspace.Sessions.Count > 0)
         traceSummary = summary;
         pendingFile = null;
         pendingImporter = null;
+        TrackImportOutcome(
+            file,
+            encrypted,
+            result.Quality.HasWarnings
+                ? UsageTraceImportOutcome.Partial
+                : UsageTraceImportOutcome.Complete,
+            telemetryStartedAt,
+            result.Sessions.Count);
     }
 
     private TraceSession[] AnalyzeSessions(
@@ -430,6 +604,105 @@ else if (workspace.Sessions.Count > 0)
         pendingImporter = null;
         errorMessage = null;
     }
+
+    private void ToggleTelemetrySettings()
+    {
+        telemetrySettingsError = null;
+        showTelemetrySettings = !showTelemetrySettings;
+    }
+
+    private void CloseTelemetrySettings()
+    {
+        telemetrySettingsError = null;
+        showTelemetrySettings = false;
+    }
+
+    private Task EnableTelemetryAsync() =>
+        SetTelemetryConsentAsync(TelemetryConsent.Enabled);
+
+    private Task DisableTelemetryAsync() =>
+        SetTelemetryConsentAsync(TelemetryConsent.Disabled);
+
+    private async Task SetTelemetryConsentAsync(TelemetryConsent consent)
+    {
+        telemetrySettingsError = null;
+        try
+        {
+            await UsageTelemetry.SetConsentAsync(consent);
+            showTelemetrySettings = false;
+        }
+        catch (Exception exception) when (
+            exception is IOException
+            or UnauthorizedAccessException
+            or InvalidOperationException)
+        {
+            telemetrySettingsError =
+                "The telemetry preference could not be saved.";
+        }
+    }
+
+    private async Task ResetTelemetryIdAsync()
+    {
+        telemetrySettingsError = null;
+        try
+        {
+            await UsageTelemetry.ResetInstallationIdAsync();
+        }
+        catch (Exception exception) when (
+            exception is IOException
+            or UnauthorizedAccessException
+            or InvalidOperationException)
+        {
+            telemetrySettingsError =
+                "The anonymous installation ID could not be reset.";
+        }
+    }
+
+    private void TrackImportOutcome(
+        IBrowserFile file,
+        bool encrypted,
+        UsageTraceImportOutcome outcome,
+        long startedAt,
+        int? sessionCount = null,
+        UsageTraceImportError error = UsageTraceImportError.None)
+    {
+        UsageTelemetry.TrackTraceImportCompleted(
+            GetUsageTraceFormat(file.Name),
+            encrypted,
+            outcome,
+            sessionCount,
+            Stopwatch.GetElapsedTime(startedAt),
+            error);
+    }
+
+    private static UsageTraceFormat GetUsageTraceFormat(string fileName) =>
+        Path.GetExtension(fileName).ToLowerInvariant() switch
+        {
+            ".har" => UsageTraceFormat.Har,
+            ".saz" => UsageTraceFormat.Saz,
+            _ => UsageTraceFormat.Unknown
+        };
+
+    private static UsageTraceImportError GetTelemetryError(
+        Exception exception) =>
+        exception switch
+        {
+            SazInvalidPasswordException =>
+                UsageTraceImportError.PasswordIncorrect,
+            TraceImportException => UsageTraceImportError.ImportRejected,
+            IOException => UsageTraceImportError.IoError,
+            InvalidOperationException =>
+                UsageTraceImportError.InvalidOperation,
+            _ => UsageTraceImportError.InvalidOperation
+        };
+
+    private string GetTelemetryStatusText() =>
+        UsageTelemetry.Consent switch
+        {
+            TelemetryConsent.Enabled => "On",
+            TelemetryConsent.Disabled => "Off",
+            _ => "Review"
+        };
 
     private void SelectSession(TraceSession session)
     {

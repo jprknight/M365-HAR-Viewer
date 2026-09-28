@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
@@ -15,22 +16,81 @@ public sealed class StandaloneApplicationTests
     private const string DisableBrowserLaunchEnvironmentVariable =
         "M365_TRACE_DISABLE_BROWSER_LAUNCH";
     private const string EncryptedSazPassword = "E2E P@ssword";
+    private const string TestApplicationInsightsConnectionString =
+        "InstrumentationKey=00000000-0000-0000-0000-000000000000;"
+        + "IngestionEndpoint=https://dc.services.visualstudio.com/";
+
+    [Fact]
+    public async Task StandalonePackage_EnforcesLoopbackOnlyListener()
+    {
+        var executablePath = GetPublishedExecutablePath();
+        var publishDirectory = Path.GetDirectoryName(executablePath)!;
+        var port = GetAvailablePort();
+        var url = $"http://localhost:{port}";
+        using var process = StartApplication(
+            executablePath,
+            publishDirectory,
+            $"--port {port}",
+            new Dictionary<string, string?>
+            {
+                ["ASPNETCORE_URLS"] = $"http://0.0.0.0:{port}"
+            });
+
+        try
+        {
+            await WaitForApplicationAsync(url, process);
+
+            var listeners = IPGlobalProperties
+                .GetIPGlobalProperties()
+                .GetActiveTcpListeners()
+                .Where(endpoint => endpoint.Port == port)
+                .ToArray();
+
+            Assert.NotEmpty(listeners);
+            Assert.All(
+                listeners,
+                endpoint => Assert.True(
+                    IPAddress.IsLoopback(endpoint.Address),
+                    $"Port {port} unexpectedly listened on "
+                    + $"'{endpoint.Address}'."));
+        }
+        finally
+        {
+            await StopProcessAsync(process);
+        }
+    }
+
+    [Fact]
+    public async Task StandalonePackage_RejectsUrlsOptionWithoutListening()
+    {
+        var executablePath = GetPublishedExecutablePath();
+        var publishDirectory = Path.GetDirectoryName(executablePath)!;
+        var port = GetAvailablePort();
+        using var process = StartApplication(
+            executablePath,
+            publishDirectory,
+            $"--urls http://0.0.0.0:{port}");
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await process.WaitForExitAsync(timeout.Token);
+        var standardError = await process.StandardError.ReadToEndAsync(
+            timeout.Token);
+
+        Assert.Equal(2, process.ExitCode);
+        Assert.Contains("--urls option is not supported", standardError);
+        Assert.Contains("Use --port", standardError);
+        Assert.DoesNotContain(
+            IPGlobalProperties
+                .GetIPGlobalProperties()
+                .GetActiveTcpListeners(),
+            endpoint => endpoint.Port == port);
+    }
 
     [Fact]
     public async Task StandalonePackage_SupportsCriticalInvestigationWorkflow()
     {
-        var publishDirectory = Environment.GetEnvironmentVariable(
-            "M365_TRACE_PUBLISH_DIR");
-        Assert.False(
-            string.IsNullOrWhiteSpace(publishDirectory),
-            "M365_TRACE_PUBLISH_DIR must identify the tested publish directory.");
-
-        var executablePath = Path.Combine(
-            publishDirectory!,
-            "M365Trace.Web.exe");
-        Assert.True(
-            File.Exists(executablePath),
-            $"Published executable was not found at '{executablePath}'.");
+        var executablePath = GetPublishedExecutablePath();
+        var publishDirectory = Path.GetDirectoryName(executablePath)!;
 
         var port = GetAvailablePort();
         var url = $"http://localhost:{port}";
@@ -51,6 +111,9 @@ public sealed class StandaloneApplicationTests
         var encryptedSazPath = Path.Combine(
             Path.GetTempPath(),
             $"m365-trace-encrypted-e2e-{Guid.NewGuid():N}.saz");
+        var telemetrySettingsPath = Path.Combine(
+            Path.GetTempPath(),
+            $"m365-trace-telemetry-e2e-{Guid.NewGuid():N}.json");
         Process? process = null;
 
         try
@@ -65,7 +128,7 @@ public sealed class StandaloneApplicationTests
             var startInfo = new ProcessStartInfo
             {
                 FileName = executablePath,
-                Arguments = $"--urls \"{url}\"",
+                Arguments = $"--port {port}",
                 WorkingDirectory = publishDirectory,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
@@ -74,12 +137,32 @@ public sealed class StandaloneApplicationTests
             };
             startInfo.Environment[
                 DisableBrowserLaunchEnvironmentVariable] = "1";
+            startInfo.Environment["ASPNETCORE_URLS"] =
+                $"http://0.0.0.0:{port}";
+            startInfo.Environment[
+                "Telemetry__ApplicationInsightsConnectionString"] =
+                TestApplicationInsightsConnectionString;
+            startInfo.Environment[
+                "Telemetry__SettingsPath"] = telemetrySettingsPath;
             process = Process.Start(startInfo);
             Assert.NotNull(process);
 
             var outputTask = process.StandardOutput.ReadToEndAsync();
             var errorTask = process.StandardError.ReadToEndAsync();
             await WaitForApplicationAsync(url, process);
+
+            using (var hostValidationClient = new HttpClient())
+            {
+                using var invalidHostRequest = new HttpRequestMessage(
+                    HttpMethod.Get,
+                    url);
+                invalidHostRequest.Headers.Host = "untrusted.example";
+                using var invalidHostResponse =
+                    await hostValidationClient.SendAsync(invalidHostRequest);
+                Assert.Equal(
+                    HttpStatusCode.BadRequest,
+                    invalidHostResponse.StatusCode);
+            }
 
             using var playwright = await Playwright.CreateAsync();
             await using var browser = await playwright.Chromium.LaunchAsync(
@@ -93,6 +176,31 @@ public sealed class StandaloneApplicationTests
             await page.WaitForFunctionAsync(
                 "() => typeof window.Blazor !== 'undefined'");
             await page.WaitForTimeoutAsync(500);
+
+            var telemetryDialog = page.Locator(
+                "dialog.telemetry-consent-dialog");
+            await telemetryDialog.WaitForAsync();
+            Assert.True(await telemetryDialog.EvaluateAsync<bool>(
+                "element => element.open && element.matches(':modal')"));
+            Assert.Contains(
+                "Yes, share anonymous usage",
+                await telemetryDialog.InnerTextAsync());
+            Assert.Contains(
+                "No, do not share",
+                await telemetryDialog.InnerTextAsync());
+            await telemetryDialog
+                .Locator("button")
+                .Filter(new LocatorFilterOptions
+                {
+                    HasText = "No, do not share"
+                })
+                .ClickAsync();
+            await telemetryDialog.WaitForAsync(
+                new LocatorWaitForOptions
+                {
+                    State = WaitForSelectorState.Detached
+                });
+
             await page.Locator("input[type=file]").First.SetInputFilesAsync(harPath);
             await WaitForRowCountWithDiagnosticsAsync(page, 2);
 
@@ -399,6 +507,7 @@ public sealed class StandaloneApplicationTests
             File.Delete(largeHarPath);
             File.Delete(sazPath);
             File.Delete(encryptedSazPath);
+            File.Delete(telemetrySettingsPath);
             File.Delete(outputPath);
             File.Delete(errorPath);
         }
@@ -416,6 +525,63 @@ public sealed class StandaloneApplicationTests
         finally
         {
             listener.Stop();
+        }
+    }
+
+    private static string GetPublishedExecutablePath()
+    {
+        var publishDirectory = Environment.GetEnvironmentVariable(
+            "M365_TRACE_PUBLISH_DIR");
+        Assert.False(
+            string.IsNullOrWhiteSpace(publishDirectory),
+            "M365_TRACE_PUBLISH_DIR must identify the tested publish directory.");
+
+        var executablePath = Path.Combine(
+            publishDirectory!,
+            "M365Trace.Web.exe");
+        Assert.True(
+            File.Exists(executablePath),
+            $"Published executable was not found at '{executablePath}'.");
+        return executablePath;
+    }
+
+    private static Process StartApplication(
+        string executablePath,
+        string workingDirectory,
+        string arguments,
+        IReadOnlyDictionary<string, string?>? environment = null)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = executablePath,
+            Arguments = arguments,
+            WorkingDirectory = workingDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        startInfo.Environment[
+            DisableBrowserLaunchEnvironmentVariable] = "1";
+        if (environment is not null)
+        {
+            foreach (var item in environment)
+            {
+                startInfo.Environment[item.Key] = item.Value;
+            }
+        }
+
+        return Process.Start(startInfo)
+            ?? throw new InvalidOperationException(
+                "The packaged application could not be started.");
+    }
+
+    private static async Task StopProcessAsync(Process process)
+    {
+        if (!process.HasExited)
+        {
+            process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync();
         }
     }
 

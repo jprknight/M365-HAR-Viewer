@@ -78,29 +78,55 @@ main {
     gap: 0.75rem;
 }
 
-.trace-operation-status {
-    display: flex;
-    min-width: 13rem;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.45rem 0.55rem 0.45rem 0.75rem;
-    border: 1px solid #d29922;
+.telemetry-settings-button {
+    padding: 0.55rem 0.75rem;
+    border: 1px solid #30363d;
     border-radius: 0.5rem;
-    background: rgba(187, 128, 9, 0.1);
+    background: rgba(13, 17, 23, 0.86);
+    color: #c9d1d9;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 650;
+    white-space: nowrap;
 }
 
-.trace-operation-status span {
+.telemetry-settings-button:hover {
+    border-color: #58a6ff;
+    color: #e6edf3;
+}
+
+.trace-operation-inline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.15rem;
+}
+
+.trace-operation-inline strong {
     overflow: hidden;
-    color: #e3b341;
+    min-width: 0;
+    margin: 0;
+    color: #79c0ff;
     font-size: 0.75rem;
     font-weight: 650;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.trace-operation-status .secondary-action-button {
-    padding: 0.4rem 0.6rem;
+.trace-operation-inline button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #8b949e;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 650;
+}
+
+.trace-operation-inline button:hover {
+    color: #e6edf3;
+    text-decoration: underline;
 }
 
 .version-card {
@@ -194,6 +220,122 @@ main {
     border: 1px solid #f85149;
     border-radius: 0.5rem;
     background: rgba(248, 81, 73, 0.12);
+}
+
+.telemetry-consent-dialog {
+    width: 100vw;
+    max-width: none;
+    height: 100vh;
+    max-height: none;
+    padding: 2rem;
+    border: 0;
+    margin: 0;
+    background:
+        radial-gradient(circle at top left, rgba(30, 90, 140, 0.3), transparent 36rem),
+        rgba(5, 8, 12, 0.98);
+    color: #e6edf3;
+}
+
+.telemetry-consent-dialog[open] {
+    display: grid;
+    place-items: center;
+}
+
+.telemetry-consent-dialog::backdrop {
+    background: #05080c;
+}
+
+.telemetry-consent-card {
+    width: min(46rem, 100%);
+    padding: clamp(2rem, 5vw, 4rem);
+    border: 1px solid #388bfd;
+    border-radius: 1rem;
+    background: #0d1117;
+    box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, 0.55);
+}
+
+.telemetry-consent-card h2 {
+    margin: 0;
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    letter-spacing: -0.04em;
+}
+
+.telemetry-consent-card p:not(.eyebrow) {
+    margin: 1rem 0 0;
+    color: #c9d1d9;
+    font-size: 1rem;
+    line-height: 1.65;
+}
+
+.telemetry-privacy-link {
+    display: inline-block;
+    margin-top: 0.8rem;
+    color: #79c0ff;
+    font-size: 0.82rem;
+    font-weight: 650;
+}
+
+.telemetry-privacy-link:hover {
+    color: #a5d6ff;
+}
+
+.telemetry-consent-card .telemetry-privacy-link {
+    font-size: 0.95rem;
+}
+
+.telemetry-consent-card .telemetry-consent-actions {
+    justify-content: flex-start;
+    margin-top: 2rem;
+}
+
+.telemetry-settings-panel {
+    display: flex;
+    width: 100%;
+    max-width: 1600px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    margin: 0 auto 1.5rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid #388bfd;
+    border-radius: 0.6rem;
+    background: rgba(31, 111, 235, 0.1);
+}
+
+.telemetry-settings-panel h2,
+.telemetry-settings-panel p {
+    margin: 0;
+}
+
+.telemetry-settings-panel h2 {
+    font-size: 1rem;
+}
+
+.telemetry-settings-panel p:not(.eyebrow) {
+    max-width: 68rem;
+    margin-top: 0.35rem;
+    color: #c9d1d9;
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
+.telemetry-consent-dialog .telemetry-settings-error,
+.telemetry-settings-panel .telemetry-settings-error {
+    color: #ff7b72;
+    font-weight: 650;
+}
+
+.telemetry-consent-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.55rem;
+}
+
+.telemetry-enabled {
+    color: #3fb950;
+    font-size: 0.8rem;
+    white-space: nowrap;
 }
 
 .password-prompt {
@@ -1010,6 +1152,7 @@ main {
 .session-table tbody tr[data-session-row] {
     height: 2.6875rem;
     cursor: pointer;
+    scroll-margin-top: 2.75rem;
 }
 
 .session-table tbody tr[data-session-row]:hover:not(.selected) {

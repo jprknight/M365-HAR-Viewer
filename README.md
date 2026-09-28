@@ -11,10 +11,19 @@ The current implementation supports opening HTTP Archive (`.har`) and encrypted 
 - Open a terminal in the extracted folder and run:
 
 ```powershell
-./M365Trace.Web.exe --urls "http://localhost:8080"
+./M365Trace.Web.exe
 ```
 
 The application attempts to open `http://localhost:8080` in the default web browser after startup. If the browser does not open, navigate to that address manually. Keep the terminal open while using the analyzer and press `Ctrl+C` to stop it.
+
+To use a different local port:
+
+```powershell
+./M365Trace.Web.exe --port 9090
+```
+
+The application always listens only on the local computer's IPv4 and IPv6
+loopback interfaces. Network-interface and wildcard bindings are not supported.
 
 ## Versioning and releases
 
@@ -28,6 +37,18 @@ At startup, the application makes one anonymous request to the public GitHub Rel
 - **Update check unavailable** when GitHub cannot be reached
 
 Trace import and analysis continue to work when offline or when the version check fails.
+
+## Privacy and optional usage telemetry
+
+Trace data is always processed locally and is never sent through the optional telemetry channel. Builds configured with a dedicated Application Insights connection string show a full-screen first-run consent prompt for anonymous product-usage telemetry. The user must explicitly choose Yes or No before opening a trace. Consent defaults to off, can be changed at any time, and includes a control to reset the random anonymous installation ID.
+
+The allowlisted telemetry reports application version, operating-system family, architecture, random installation and application-session IDs, coarse trace format, encrypted status, import outcome, session-count and duration buckets, and normalized error codes. It never reports trace names, paths, URLs, hosts, headers, bodies, findings, user or machine identity, tenant or mailbox identifiers, passwords, or exception messages. Exporter offline storage is disabled.
+
+See [Anonymous usage telemetry](docs/USAGE-TELEMETRY.md) for configuration, consent behavior, the complete event schema, and operational safeguards.
+
+Repository-maintained [telemetry reporting queries and workbook deployment instructions](docs/TELEMETRY-REPORTING.md) cover anonymous installations, application sessions, imports, versions, countries or regions, outcomes, and normalized failures.
+
+See [Security and privacy](docs/SECURITY-AND-PRIVACY.md) for the complete public data-flow and storage description. The [public threat model](docs/THREAT-MODEL.md) documents trust boundaries, mitigations, residual risks, and review triggers. Report suspected vulnerabilities privately according to [SECURITY.md](SECURITY.md).
 
 To publish a version:
 
@@ -43,6 +64,9 @@ The latest stable GitHub Release is the update source of truth. Tags without a p
 ```powershell
 dotnet test .\M365-Trace-Analyzer.sln
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for secure development requirements,
+test expectations, and rules for synthetic or sanitized fixtures.
 
 ## Projects
 

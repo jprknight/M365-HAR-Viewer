@@ -49,6 +49,15 @@ jobs:
           --self-contained true
           --output .\artifacts\publish\win-x64
 
+      - name: Configure anonymous usage telemetry
+        shell: pwsh
+        env:
+          APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}
+        run: >
+          .\eng\Set-PublishedTelemetryConfiguration.ps1
+          -PublishDirectory .\artifacts\publish\win-x64
+          -ConnectionString $env:APPLICATIONINSIGHTS_CONNECTION_STRING
+
       - name: Smoke test published application
         shell: pwsh
         run: >
@@ -105,7 +114,7 @@ jobs:
 
           Download and extract ``$assetName``. Open a terminal in the extracted folder and run:
 
-          ``./M365Trace.Web.exe --urls "http://localhost:8080"``
+          ``./M365Trace.Web.exe``
 
           The application attempts to open the analyzer in the default web browser. If the browser does not open, navigate to ``http://localhost:8080`` manually.
 

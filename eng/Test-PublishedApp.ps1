@@ -4,12 +4,14 @@ param(
 
     [string] $ExpectedVersion,
 
-    [string] $Url = "http://localhost:8182",
+    [ValidateRange(1, 65535)]
+    [int] $Port = 8182,
 
     [int] $StartupTimeoutSeconds = 30
 )
 
 $ErrorActionPreference = "Stop"
+$Url = "http://localhost:$Port"
 
 $projectPath = Join-Path $PSScriptRoot "..\src\M365Trace.Web\M365Trace.Web.csproj"
 if ([string]::IsNullOrWhiteSpace($ExpectedVersion)) {
@@ -36,7 +38,7 @@ try {
     $env:M365_TRACE_DISABLE_BROWSER_LAUNCH = "1"
     $process = Start-Process `
         -FilePath $executablePath `
-        -ArgumentList "--urls", $Url `
+        -ArgumentList "--port", $Port `
         -WorkingDirectory $publishPath `
         -RedirectStandardOutput $stdoutPath `
         -RedirectStandardError $stderrPath `

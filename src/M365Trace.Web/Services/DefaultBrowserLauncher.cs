@@ -9,23 +9,14 @@ public sealed class DefaultBrowserLauncher(
     public const string DisableBrowserLaunchEnvironmentVariable =
         "M365_TRACE_DISABLE_BROWSER_LAUNCH";
 
-    public void TryLaunch(IEnumerable<string> serverAddresses)
+    public void TryLaunch(int port)
     {
-        ArgumentNullException.ThrowIfNull(serverAddresses);
-
         if (IsBrowserLaunchDisabled() || !OperatingSystem.IsWindows())
         {
             return;
         }
 
-        var browserUrl = GetBrowserUrl(serverAddresses);
-        if (browserUrl is null)
-        {
-            logger.LogWarning(
-                "The application started, but no HTTP address was available "
-                + "to open in the default browser.");
-            return;
-        }
+        var browserUrl = GetBrowserUrl(port);
 
         try
         {
@@ -49,29 +40,18 @@ public sealed class DefaultBrowserLauncher(
         }
     }
 
-    public static string? GetBrowserUrl(IEnumerable<string> serverAddresses)
+    public static string GetBrowserUrl(int port)
     {
-        ArgumentNullException.ThrowIfNull(serverAddresses);
-
-        foreach (var address in serverAddresses)
+        if (port is < 1 or > 65535)
         {
-            if (!Uri.TryCreate(address, UriKind.Absolute, out var uri)
-                || (uri.Scheme != Uri.UriSchemeHttp
-                    && uri.Scheme != Uri.UriSchemeHttps))
-            {
-                continue;
-            }
-
-            var builder = new UriBuilder(uri);
-            if (uri.Host is "0.0.0.0" or "[::]" or "::" or "*")
-            {
-                builder.Host = "localhost";
-            }
-
-            return builder.Uri.AbsoluteUri;
+            throw new ArgumentOutOfRangeException(
+                nameof(port),
+                "The port must be from 1 through 65535.");
         }
 
-        return null;
+        return new UriBuilder(Uri.UriSchemeHttp, "localhost", port)
+            .Uri
+            .AbsoluteUri;
     }
 
     private static bool IsBrowserLaunchDisabled()
