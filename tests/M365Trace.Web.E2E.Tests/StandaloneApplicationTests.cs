@@ -71,7 +71,7 @@ public sealed class StandaloneApplicationTests
             var startInfo = new ProcessStartInfo
             {
                 FileName = executablePath,
-                Arguments = $"--urls \"{url}\"",
+                Arguments = $"--port {port}",
                 WorkingDirectory = publishDirectory,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
@@ -80,6 +80,8 @@ public sealed class StandaloneApplicationTests
             };
             startInfo.Environment[
                 DisableBrowserLaunchEnvironmentVariable] = "1";
+            startInfo.Environment["ASPNETCORE_URLS"] =
+                $"http://0.0.0.0:{port}";
             startInfo.Environment[
                 "Telemetry__ApplicationInsightsConnectionString"] =
                 TestApplicationInsightsConnectionString;
@@ -91,6 +93,19 @@ public sealed class StandaloneApplicationTests
             var outputTask = process.StandardOutput.ReadToEndAsync();
             var errorTask = process.StandardError.ReadToEndAsync();
             await WaitForApplicationAsync(url, process);
+
+            using (var hostValidationClient = new HttpClient())
+            {
+                using var invalidHostRequest = new HttpRequestMessage(
+                    HttpMethod.Get,
+                    url);
+                invalidHostRequest.Headers.Host = "untrusted.example";
+                using var invalidHostResponse =
+                    await hostValidationClient.SendAsync(invalidHostRequest);
+                Assert.Equal(
+                    HttpStatusCode.BadRequest,
+                    invalidHostResponse.StatusCode);
+            }
 
             using var playwright = await Playwright.CreateAsync();
             await using var browser = await playwright.Chromium.LaunchAsync(

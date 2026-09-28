@@ -6,10 +6,23 @@ using M365Trace.Rules;
 using M365Trace.Rules.Legacy;
 using M365Trace.Web.Services;
 using M365Trace.Web.Services.Telemetry;
-using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Hosting.Server.Features;
 
-var builder = WebApplication.CreateBuilder(args);
+LocalServerOptions localServerOptions;
+try
+{
+    localServerOptions = LocalServerOptions.Parse(args);
+}
+catch (ArgumentException exception)
+{
+    Console.Error.WriteLine($"Error: {exception.Message}");
+    Environment.ExitCode = 2;
+    return;
+}
+
+var builder = WebApplication.CreateBuilder(
+    localServerOptions.RemainingArguments);
+builder.WebHost.ConfigureKestrel(options =>
+    options.ListenLocalhost(localServerOptions.Port));
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -80,16 +93,9 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-var server = app.Services.GetRequiredService<IServer>();
 var browserLauncher = app.Services.GetRequiredService<DefaultBrowserLauncher>();
 app.Lifetime.ApplicationStarted.Register(() =>
-{
-    var addresses = server.Features
-        .Get<IServerAddressesFeature>()?
-        .Addresses
-        ?? app.Urls;
-    browserLauncher.TryLaunch(addresses);
-});
+    browserLauncher.TryLaunch(localServerOptions.Port));
 
 await app.Services
     .GetRequiredService<IUsageTelemetryService>()

@@ -9,8 +9,7 @@
       "cwd": "${workspaceFolder}\\src\\M365Trace.Web",
       "preLaunchTask": "Build M365 Trace Analyzer",
       "env": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "ASPNETCORE_URLS": "http://localhost:8080"
+        "ASPNETCORE_ENVIRONMENT": "Development"
       },
       "serverReadyAction": {
         "action": "openExternally",
