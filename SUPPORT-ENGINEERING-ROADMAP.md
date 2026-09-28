@@ -36,7 +36,7 @@ The remaining gaps are less about basic file viewing and more about helping a su
 
 - Deliver this as a **prioritized roadmap**, not one monolithic implementation.
 - Data and report export are out of scope; the analyzer remains an interactive local investigation tool.
-- Keep core models and analysis services suitable for a future MCP/API adapter, but **do not implement MCP or an external API in this roadmap**.
+- Keep core models and analysis services host-independent, but **do not implement an MCP adapter or external API**. The standalone analyzer is the current product direction, and MCP integration is deferred until a concrete support-engineering workflow justifies reopening the decision.
 - Define and benchmark both ordinary traces and large traces because typical field size is not yet known.
 - Do not add request replay or transmission features; the analyzer remains a passive, local diagnostic tool.
 
@@ -363,7 +363,7 @@ If the selected session is removed from the visible result:
 ## Architecture notes
 
 - Extract trace state, filtering, aggregation, and trace-level analysis from `Home.razor`; it is already carrying import, analysis, filtering, sorting, selection, password, update, and rendering responsibilities.
-- Keep `M365Trace.Core` free of Blazor dependencies and suitable for later CLI, MCP, or API adapters.
+- Keep `M365Trace.Core` free of Blazor dependencies and reusable by other local hosts without committing to an MCP or external API surface.
 - Model per-session analysis and trace-wide analysis separately:
   - `TraceAnalysisEngine` continues deterministic per-session classification.
   - A new trace analysis service consumes the complete analyzed session collection.
@@ -401,4 +401,4 @@ If the selected session is removed from the visible result:
 2. [x] Complete Phase 1 triage, structured filters, ergonomics, accessibility, and browser coverage.
 3. [x] Expand the core model and importer fidelity with import-quality reporting.
 4. [x] Harden scale, cancellation, UI regression coverage, and packaging.
-5. [ ] Reassess whether an MCP adapter has a concrete support workflow after the standalone investigation experience is proven.
+5. [x] Defer MCP integration. As of September 28, 2026, the standalone analyzer is the completed product direction and no MCP adapter is planned.
