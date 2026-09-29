@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/jprknight/M365-Trace-Analyzer/security/advisories/new
+    about: Do not disclose vulnerability details, traces, credentials, or customer data in a public issue.
+  - name: Read the security policy
+    url: https://github.com/jprknight/M365-Trace-Analyzer/security/policy
+    about: Review supported versions, response guidance, and safe reporting requirements.

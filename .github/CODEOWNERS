@@ -1,0 +1,23 @@
+# Default repository ownership.
+* @jprknight
+
+# Security-sensitive governance and automation.
+/.github/ @jprknight
+/SECURITY.md @jprknight
+/LICENSE @jprknight
+/docs/SECURITY-ASSURANCE.md @jprknight
+/docs/SECURITY-AND-PRIVACY.md @jprknight
+/docs/DATA-HANDLING.md @jprknight
+/docs/THREAT-MODEL.md @jprknight
+/docs/SECURITY-TESTING.md @jprknight
+/docs/SUPPORT-ENGINEER-OPERATING-GUIDE.md @jprknight
+/docs/RELEASING.md @jprknight
+/eng/ @jprknight
+
+# Untrusted-input and network boundaries.
+/src/M365Trace.Import.Har/ @jprknight
+/src/M365Trace.Import.Saz/ @jprknight
+/src/M365Trace.Web/ @jprknight
+
+# Add or replace owners with the appropriate security-team reviewers when
+# independent review ownership is available.

@@ -1,0 +1,67 @@
+name: Bug report
+description: Report a reproducible product defect using synthetic or sanitized data.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not attach real HAR or SAZ files, customer data, credentials, tokens,
+        tenant information, private URLs, or screenshots containing sensitive
+        diagnostic content.
+
+        Security vulnerabilities must be reported privately through the
+        repository Security tab.
+  - type: input
+    id: version
+    attributes:
+      label: Application version
+      description: Use the version displayed in the application header.
+      placeholder: 1.0.5
+    validations:
+      required: true
+  - type: dropdown
+    id: format
+    attributes:
+      label: Trace format
+      options:
+        - HAR
+        - SAZ
+        - Not trace-specific
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem
+      description: Describe the behavior without including sensitive trace content.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide steps using generated or appropriately sanitized data.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include Windows version and launch command. Remove user names, paths, and internal host names.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Data-safety confirmation
+      options:
+        - label: I have not included customer data, credentials, tokens, tenant information, or confidential diagnostic content.
+          required: true
+        - label: This report is not a security vulnerability.
+          required: true

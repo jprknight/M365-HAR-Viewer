@@ -84,6 +84,23 @@ jobs:
           --configuration Release
           --no-build
 
+      - name: Generate release SBOM
+        id: sbom
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          $sbomName = "M365-Trace-Analyzer-v$version.spdx.json"
+          $sbomPath = Join-Path $PWD "artifacts\$sbomName"
+          .\eng\New-ReleaseSbom.ps1 `
+            -BuildDropPath .\artifacts\publish\win-x64 `
+            -PackageVersion $version `
+            -OutputPath $sbomPath `
+            -SourceRevision '${{ github.sha }}'
+          $hash = (Get-FileHash -LiteralPath $sbomPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          "sbom-path=$sbomPath" >> $env:GITHUB_OUTPUT
+          "sbom-name=$sbomName" >> $env:GITHUB_OUTPUT
+          "sbom-sha256=$hash" >> $env:GITHUB_OUTPUT
+
       - name: Create release archive and checksum
         id: package
         shell: pwsh
@@ -119,12 +136,22 @@ jobs:
           The application attempts to open the analyzer in the default web browser. If the browser does not open, navigate to ``http://localhost:8080`` manually.
 
           SHA-256: ``$hash``
+
+          SPDX SBOM: ``${{ steps.sbom.outputs.sbom-name }}``
+
+          SBOM SHA-256: ``${{ steps.sbom.outputs.sbom-sha256 }}``
           "@ | Set-Content -LiteralPath .\artifacts\release-notes.md
 
       - name: Attest release archive
         uses: actions/attest@v4
         with:
           subject-path: ${{ steps.package.outputs.asset-path }}
+
+      - name: Attest release SBOM
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.package.outputs.asset-path }}
+          sbom-path: ${{ steps.sbom.outputs.sbom-path }}
 
       - name: Publish GitHub Release
         shell: pwsh
@@ -133,6 +160,7 @@ jobs:
         run: >
           gh release create '${{ github.ref_name }}'
           '${{ steps.package.outputs.asset-path }}'
+          '${{ steps.sbom.outputs.sbom-path }}'
           --repo '${{ github.repository }}'
           --title 'M365 Trace Analyzer ${{ github.ref_name }}'
           --notes-file .\artifacts\release-notes.md

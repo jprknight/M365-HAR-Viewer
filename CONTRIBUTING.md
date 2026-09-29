@@ -8,6 +8,10 @@ Review the [architecture](docs/ARCHITECTURE.md) before changing import,
 analysis, storage, network, or rendering behavior. Release maintainers should
 also follow the [release process](docs/RELEASING.md).
 
+Contributions are accepted under the
+[Apache License 2.0](LICENSE). Unless explicitly stated otherwise, an
+intentionally submitted contribution is provided under that license.
+
 ## Protect diagnostic data
 
 Do not commit or submit:
