@@ -166,3 +166,12 @@ jobs:
           --notes-file .\artifacts\release-notes.md
           --generate-notes
           --verify-tag
+
+      - name: Retain the latest two stable release ZIPs
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          .\eng\Invoke-ReleaseAssetRetention.ps1
+          -Repository '${{ github.repository }}'
+          -KeepStableZipCount 2

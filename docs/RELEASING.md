@@ -80,6 +80,7 @@ The tag-triggered workflow:
 9. Calculates and publishes SHA-256 values for the ZIP and SBOM.
 10. Generates build-provenance and SBOM attestations.
 11. Publishes the ZIP and SPDX SBOM using the matching release-notes file.
+12. Removes Windows ZIP assets older than the latest two stable releases.
 
 If telemetry configuration is absent, the published package keeps telemetry
 disabled and does not show telemetry consent controls.
@@ -102,3 +103,28 @@ pins and verifies the tool's SHA-256 value before execution.
 
 The latest stable GitHub Release is the application's update source of truth.
 Tags without a published release are not offered to users.
+
+## Release ZIP retention
+
+The current stable release (`N`) and its immediate stable predecessor (`N-1`)
+retain downloadable Windows ZIP assets. Older release pages, tags, notes,
+SBOMs, checksums, and attestations remain available as historical evidence,
+but their Windows ZIP assets are removed.
+
+Drafts and prereleases do not count toward the two retained stable releases.
+The cleanup matches only the versioned
+`M365-Trace-Analyzer-vX.Y.Z-win-x64.zip` asset and does not remove unrelated
+assets.
+
+The release workflow applies the policy immediately after publishing. The
+`Release asset retention` workflow also reconciles the policy every Monday and
+supports manual dry runs.
+
+If a retained release has a security defect, run the retention workflow
+manually with `dry_run` disabled and list the affected `X.Y.Z` value in
+`withdraw_versions`. An explicit withdrawal takes precedence over the normal
+two-release retention window.
+
+The predecessor is retained only as a short-term rollback option. The latest
+stable release remains the supported version unless `SECURITY.md` states
+otherwise.

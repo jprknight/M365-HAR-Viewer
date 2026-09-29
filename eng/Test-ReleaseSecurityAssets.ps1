@@ -2,13 +2,19 @@ $ErrorActionPreference = "Stop"
 
 $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 $workflowPath = Join-Path $repositoryRoot ".github\workflows\release.yml"
+$retentionWorkflowPath = Join-Path `
+    $repositoryRoot ".github\workflows\release-asset-retention.yml"
 $sbomScriptPath = Join-Path $repositoryRoot "eng\New-ReleaseSbom.ps1"
+$retentionScriptPath = Join-Path `
+    $repositoryRoot "eng\Invoke-ReleaseAssetRetention.ps1"
 $licensePath = Join-Path $repositoryRoot "LICENSE"
 $codeOwnersPath = Join-Path $repositoryRoot ".github\CODEOWNERS"
 
 foreach ($path in @(
     $workflowPath,
+    $retentionWorkflowPath,
     $sbomScriptPath,
+    $retentionScriptPath,
     $licensePath,
     $codeOwnersPath)) {
     if (-not (Test-Path -LiteralPath $path)) {
@@ -17,18 +23,53 @@ foreach ($path in @(
 }
 
 $workflow = Get-Content -LiteralPath $workflowPath -Raw
+$retentionWorkflow = Get-Content -LiteralPath $retentionWorkflowPath -Raw
 $sbomScript = Get-Content -LiteralPath $sbomScriptPath -Raw
+$retentionScript = Get-Content -LiteralPath $retentionScriptPath -Raw
 
 $requiredWorkflowText = @(
     "New-ReleaseSbom.ps1",
     "M365-Trace-Analyzer-v`$version.spdx.json",
     "sbom-path:",
     "actions/attest@v4",
-    "steps.sbom.outputs.sbom-path"
+    "steps.sbom.outputs.sbom-path",
+    "Invoke-ReleaseAssetRetention.ps1",
+    "KeepStableZipCount 2"
 )
 foreach ($requiredText in $requiredWorkflowText) {
     if (-not $workflow.Contains($requiredText, [StringComparison]::Ordinal)) {
         throw "Release workflow is missing required SBOM text '$requiredText'."
+    }
+}
+
+$requiredRetentionText = @(
+    "workflow_dispatch:",
+    "schedule:",
+    "dry_run:",
+    "withdraw_versions:",
+    "Invoke-ReleaseAssetRetention.ps1"
+)
+foreach ($requiredText in $requiredRetentionText) {
+    if (-not $retentionWorkflow.Contains(
+            $requiredText,
+            [StringComparison]::Ordinal)) {
+        throw "Retention workflow is missing required text '$requiredText'."
+    }
+}
+
+$requiredRetentionScriptText = @(
+    "KeepStableZipCount",
+    "WithdrawVersion",
+    "ReleaseDataPath",
+    "DryRun",
+    "releases/assets",
+    "M365-Trace-Analyzer-v"
+)
+foreach ($requiredText in $requiredRetentionScriptText) {
+    if (-not $retentionScript.Contains(
+            $requiredText,
+            [StringComparison]::Ordinal)) {
+        throw "Retention script is missing required text '$requiredText'."
     }
 }
 

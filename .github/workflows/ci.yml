@@ -41,6 +41,10 @@ jobs:
         shell: pwsh
         run: ./eng/Test-ReleaseSecurityAssets.ps1
 
+      - name: Test release asset retention
+        shell: pwsh
+        run: ./eng/Test-ReleaseAssetRetention.ps1
+
       - name: Build
         run: dotnet build M365-Trace-Analyzer.sln --configuration Release --no-restore -warnaserror
 

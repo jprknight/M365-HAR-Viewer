@@ -1,0 +1,52 @@
+name: Release asset retention
+
+on:
+  schedule:
+    - cron: "17 8 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Report matching ZIP assets without deleting them
+        required: true
+        type: boolean
+        default: true
+      withdraw_versions:
+        description: Comma-separated X.Y.Z versions to withdraw immediately
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    name: Reconcile release ZIP assets
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Apply release asset retention
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $parameters = @{
+            Repository = '${{ github.repository }}'
+            KeepStableZipCount = 2
+          }
+          $withdrawVersions = '${{ inputs.withdraw_versions }}'
+          if (-not [string]::IsNullOrWhiteSpace($withdrawVersions)) {
+            $parameters.WithdrawVersion = @(
+              $withdrawVersions.Split(
+                ',',
+                [StringSplitOptions]::RemoveEmptyEntries
+              ).Trim()
+            )
+          }
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch'
+              -and '${{ inputs.dry_run }}' -eq 'true') {
+            $parameters.DryRun = $true
+          }
+          .\eng\Invoke-ReleaseAssetRetention.ps1 @parameters
