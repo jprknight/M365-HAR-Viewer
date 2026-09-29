@@ -45,8 +45,8 @@ jobs:
               ).Trim()
             )
           }
-          if ('${{ github.event_name }}' -eq 'workflow_dispatch'
-              -and '${{ inputs.dry_run }}' -eq 'true') {
+          $isDryRun = '${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}' -eq 'true'
+          if ($isDryRun) {
             $parameters.DryRun = $true
           }
           .\eng\Invoke-ReleaseAssetRetention.ps1 @parameters

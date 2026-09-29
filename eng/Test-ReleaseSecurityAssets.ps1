@@ -47,6 +47,7 @@ $requiredRetentionText = @(
     "schedule:",
     "dry_run:",
     "withdraw_versions:",
+    "`$isDryRun =",
     "Invoke-ReleaseAssetRetention.ps1"
 )
 foreach ($requiredText in $requiredRetentionText) {
