@@ -37,6 +37,10 @@ jobs:
         shell: pwsh
         run: ./eng/Test-TelemetryReporting.ps1
 
+      - name: Test release security assets
+        shell: pwsh
+        run: ./eng/Test-ReleaseSecurityAssets.ps1
+
       - name: Build
         run: dotnet build M365-Trace-Analyzer.sln --configuration Release --no-restore -warnaserror
 

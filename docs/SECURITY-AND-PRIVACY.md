@@ -9,6 +9,9 @@ This document describes the current implementation. It is not a certification,
 compliance guarantee, or authorization to process a particular category of
 data.
 
+See [Data handling](DATA-HANDLING.md) for the data inventory, lifecycle, and
+operational evidence requirements.
+
 ## Processing model
 
 - The application runs as a local ASP.NET Core process and listens on

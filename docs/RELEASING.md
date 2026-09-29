@@ -76,9 +76,10 @@ The tag-triggered workflow:
 5. Smoke-tests the published application.
 6. Runs the packaged Chromium investigation workflow.
 7. Creates the versioned ZIP archive.
-8. Calculates and publishes its SHA-256 checksum.
-9. Generates an artifact attestation.
-10. Publishes the GitHub Release using the matching release-notes file.
+8. Generates an SPDX 2.2 SBOM from the final publish directory.
+9. Calculates and publishes SHA-256 values for the ZIP and SBOM.
+10. Generates build-provenance and SBOM attestations.
+11. Publishes the ZIP and SPDX SBOM using the matching release-notes file.
 
 If telemetry configuration is absent, the published package keeps telemetry
 disabled and does not show telemetry consent controls.
@@ -90,9 +91,14 @@ Confirm that:
 - The workflow completed successfully.
 - The release is neither a draft nor a prerelease unless intended.
 - The expected Windows ZIP is attached.
-- The checksum and artifact attestation are available.
+- The versioned SPDX SBOM is attached.
+- The ZIP and SBOM checksums are available.
+- Build-provenance and SBOM attestations are available.
 - The packaged application displays the released version.
 - The in-application update check recognizes the release.
+
+The release workflow uses Microsoft SBOM Tool `4.1.5`. The generation script
+pins and verifies the tool's SHA-256 value before execution.
 
 The latest stable GitHub Release is the application's update source of truth.
 Tags without a published release are not offered to users.

@@ -96,7 +96,11 @@ according to [SECURITY.md](SECURITY.md).
 ## Documentation
 
 - [Security and privacy](docs/SECURITY-AND-PRIVACY.md)
+- [Security assurance](docs/SECURITY-ASSURANCE.md)
+- [Data handling](docs/DATA-HANDLING.md)
 - [Public threat model](docs/THREAT-MODEL.md)
+- [Security testing](docs/SECURITY-TESTING.md)
+- [Support-engineer operating guide](docs/SUPPORT-ENGINEER-OPERATING-GUIDE.md)
 - [Anonymous usage telemetry](docs/USAGE-TELEMETRY.md)
 - [Classification coverage](CLASSIFICATION-COVERAGE.md)
 - [Architecture](docs/ARCHITECTURE.md)
@@ -104,6 +108,7 @@ according to [SECURITY.md](SECURITY.md).
 - [Support-engineering roadmap](docs/SUPPORT-ENGINEERING-ROADMAP.md)
 - [Contributing](CONTRIBUTING.md)
 - [Release process](docs/RELEASING.md)
+- [Apache License 2.0](LICENSE)
 
 ## Build and test
 
