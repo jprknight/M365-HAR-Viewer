@@ -4,6 +4,10 @@ Contributions that improve trace compatibility, diagnostic accuracy,
 performance, accessibility, security, privacy, tests, or documentation are
 welcome.
 
+Review the [architecture](docs/ARCHITECTURE.md) before changing import,
+analysis, storage, network, or rendering behavior. Release maintainers should
+also follow the [release process](docs/RELEASING.md).
+
 ## Protect diagnostic data
 
 Do not commit or submit:
